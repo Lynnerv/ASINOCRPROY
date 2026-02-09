@@ -1,92 +1,118 @@
 /**
- * Dashboard principal (placeholder).
+ * Dashboard principal.
  *
- * Se irá completando con módulos de expedientes, documentos, etc.
- * Por ahora muestra información del usuario y permite cerrar sesión.
+ * Header y footer son manejados por Layout.
+ * Esta página solo muestra contenido del área principal.
  */
 
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
 import {
-  FileSearch,
-  LogOut,
-  User,
+  Upload,
   FolderOpen,
   FileText,
-  Upload,
+  FileCheck,
+  Clock,
+  BarChart3,
 } from "lucide-react";
 import "../styles/dashboard.css";
 
 export default function Dashboard() {
-  const { usuario, logout } = useAuth();
-  const navigate = useNavigate();
-
-  function handleLogout() {
-    logout();
-    navigate("/login", { replace: true });
-  }
+  const { usuario } = useAuth();
 
   return (
     <div className="dashboard">
-      {/* --- Header --- */}
-      <header className="dash-header">
-        <div className="dash-header-left">
-          <div className="dash-logo">
-            <FileSearch size={20} />
-            <span>ASIN-OCR</span>
-          </div>
-        </div>
-        <div className="dash-header-right">
-          <div className="dash-user">
-            <User size={16} />
-            <span>{usuario?.nombre}</span>
-            <span className="dash-role">{usuario?.rol}</span>
-          </div>
-          <button className="dash-logout" onClick={handleLogout}>
-            <LogOut size={16} />
-            Salir
-          </button>
-        </div>
-      </header>
-
-      {/* --- Content --- */}
-      <main className="dash-content">
-        <div className="dash-welcome">
+      {/* Welcome */}
+      <section className="welcome-section">
+        <div className="welcome-text">
           <h1>
             Bienvenido, <span className="highlight">{usuario?.nombre}</span>
           </h1>
-          <p>Sistema de Gestión Documental con OCR + IA</p>
+          <p>Gestiona las cartas de notificación de Sedapal desde un solo lugar.</p>
         </div>
+        <Link to="/cargar" className="welcome-action">
+          <Upload size={18} />
+          Cargar Cartas
+        </Link>
+      </section>
 
-        <div className="dash-cards">
-          <div className="dash-card">
-            <div className="dash-card-icon">
-              <Upload size={24} />
-            </div>
-            <h3>Subir Documento</h3>
-            <p>Procesar cartas de notificación con OCR + Gemini</p>
-            <span className="dash-card-status">Próximamente</span>
+      {/* Stats */}
+      <section className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon stat-blue">
+            <FileText size={20} />
           </div>
-
-          <div className="dash-card">
-            <div className="dash-card-icon">
-              <FolderOpen size={24} />
-            </div>
-            <h3>Expedientes</h3>
-            <p>Consultar expedientes por NIS o cliente</p>
-            <span className="dash-card-status">Próximamente</span>
-          </div>
-
-          <div className="dash-card">
-            <div className="dash-card-icon">
-              <FileText size={24} />
-            </div>
-            <h3>Reportes</h3>
-            <p>Generar reportes y cartas poder</p>
-            <span className="dash-card-status">Próximamente</span>
+          <div className="stat-data">
+            <span className="stat-value">—</span>
+            <span className="stat-label">Documentos cargados</span>
           </div>
         </div>
-      </main>
+        <div className="stat-card">
+          <div className="stat-icon stat-green">
+            <FileCheck size={20} />
+          </div>
+          <div className="stat-data">
+            <span className="stat-value">—</span>
+            <span className="stat-label">Procesados con éxito</span>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon stat-amber">
+            <Clock size={20} />
+          </div>
+          <div className="stat-data">
+            <span className="stat-value">—</span>
+            <span className="stat-label">Pendientes</span>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon stat-purple">
+            <BarChart3 size={20} />
+          </div>
+          <div className="stat-data">
+            <span className="stat-value">—</span>
+            <span className="stat-label">Expedientes</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Quick actions */}
+      <section className="actions-section">
+        <h2>Acciones rápidas</h2>
+        <div className="actions-grid">
+          <Link to="/cargar" className="action-card action-card-link">
+            <div className="action-icon action-blue">
+              <Upload size={22} />
+            </div>
+            <div className="action-body">
+              <h3>Cargar Cartas</h3>
+              <p>Subir imágenes JPG o PNG para extracción automática</p>
+            </div>
+          </Link>
+
+          <div className="action-card action-card-disabled">
+            <div className="action-icon action-teal">
+              <FolderOpen size={22} />
+            </div>
+            <div className="action-body">
+              <h3>Expedientes</h3>
+              <p>Consultar expedientes agrupados por NIS</p>
+              <span className="action-badge">Próximamente</span>
+            </div>
+          </div>
+
+          <div className="action-card action-card-disabled">
+            <div className="action-icon action-violet">
+              <FileText size={22} />
+            </div>
+            <div className="action-body">
+              <h3>Reportes</h3>
+              <p>Generar reportes y borradores de cartas poder</p>
+              <span className="action-badge">Próximamente</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

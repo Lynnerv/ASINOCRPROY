@@ -4,37 +4,46 @@
  * Configura:
  * - AuthProvider (contexto global de autenticación)
  * - React Router (rutas de la aplicación)
- * - ProtectedRoute (rutas que requieren login)
+ * - Layout persistente (header + footer) para rutas protegidas
  */
 
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import UploadPage from "./pages/Upload";
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Ruta pública */}
+          {/* Ruta pública (sin Layout) */}
           <Route path="/login" element={<Login />} />
 
-          {/* Rutas protegidas */}
+          {/* Rutas protegidas (con Layout: header + footer) */}
           <Route
             path="/"
             element={
               <ProtectedRoute>
-                <Dashboard />
+                <Layout>
+                  <Dashboard />
+                </Layout>
               </ProtectedRoute>
             }
           />
-
-          {/* Futuras rutas protegidas:
-          <Route path="/expedientes" element={<ProtectedRoute><Expedientes /></ProtectedRoute>} />
-          <Route path="/documentos" element={<ProtectedRoute><Documentos /></ProtectedRoute>} />
-          */}
+          <Route
+            path="/cargar"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <UploadPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
 
           {/* Redirigir rutas desconocidas */}
           <Route path="*" element={<Navigate to="/" replace />} />

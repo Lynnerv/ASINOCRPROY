@@ -7,13 +7,14 @@
  */
 
 const authRoutes = require("./auth.routes");
+const documentRoutes = require("./document.routes");
 
 function registerRoutes(app) {
   app.use("/api/auth", authRoutes);
+  app.use("/api/documentos", documentRoutes);
 
   // Futuras rutas:
   // app.use("/api/expedientes", expedientesRoutes);
-  // app.use("/api/documentos", documentosRoutes);
 }
 
 module.exports = registerRoutes;

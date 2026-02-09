@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Mail, Lock, Eye, EyeOff, AlertCircle, FileSearch } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import "../styles/login.css";
 
 export default function Login() {
@@ -59,10 +59,8 @@ export default function Login() {
       <div className="login-branding">
         <div className="branding-content">
           <div className="branding-logo">
-            <div className="logo-icon">
-              <FileSearch size={24} />
-            </div>
-            <span>ASIN-OCR</span>
+            <img src="/logo.png" alt="Asin Solutions" className="branding-logo-img" />
+            <span>ASIN SOLUTIONS</span>
           </div>
 
           <h1>

@@ -88,7 +88,7 @@ CREATE INDEX idx_expedientes_estado ON expedientes(estado);
 
 CREATE TABLE documentos (
     id                  SERIAL PRIMARY KEY,
-    expediente_id       INT NOT NULL REFERENCES expedientes(id),
+    expediente_id       INT REFERENCES expedientes(id),
 
     -- Archivo original
     ruta_archivo        VARCHAR(500) NOT NULL,
