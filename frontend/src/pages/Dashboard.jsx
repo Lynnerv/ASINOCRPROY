@@ -14,6 +14,7 @@ import {
   FileCheck,
   Clock,
   BarChart3,
+  Cpu,
 } from "lucide-react";
 import "../styles/dashboard.css";
 
@@ -86,7 +87,17 @@ export default function Dashboard() {
             </div>
             <div className="action-body">
               <h3>Cargar Cartas</h3>
-              <p>Subir imágenes JPG o PNG para extracción automática</p>
+              <p>Subir imagenes JPG o PNG para extraccion automatica</p>
+            </div>
+          </Link>
+
+          <Link to="/procesar" className="action-card action-card-link">
+            <div className="action-icon action-cyan">
+              <Cpu size={22} />
+            </div>
+            <div className="action-body">
+              <h3>Procesar Contenido</h3>
+              <p>Extraer datos de cartas pendientes con OCR + IA</p>
             </div>
           </Link>
 

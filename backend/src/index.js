@@ -16,6 +16,7 @@ require("dotenv").config({ override: true });
 
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 
 const registerRoutes = require("./routes");
 const errorHandler = require("./middlewares/error.middleware");
@@ -25,6 +26,9 @@ const app = express();
 // --- Middlewares globales ---
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
+
+// --- Servir archivos subidos (imágenes de cartas) ---
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // --- Health check ---
 app.get("/api/health", (_req, res) => {

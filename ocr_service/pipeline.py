@@ -27,6 +27,12 @@ import json
 import argparse
 import time
 
+# Forzar UTF-8 en stdout/stderr (Windows usa cp1252 por defecto)
+if sys.stdout.encoding != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8")
+if sys.stderr.encoding != "utf-8":
+    sys.stderr.reconfigure(encoding="utf-8")
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from main_ocr import extract_text

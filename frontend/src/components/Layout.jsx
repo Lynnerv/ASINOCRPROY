@@ -16,6 +16,7 @@ import "../styles/layout.css";
 const NAV_ITEMS = [
   { to: "/", label: "Inicio" },
   { to: "/cargar", label: "Cargar Cartas" },
+  { to: "/procesar", label: "Procesar" },
   { to: "/expedientes", label: "Expedientes", disabled: true },
   { to: "/reportes", label: "Reportes", disabled: true },
 ];

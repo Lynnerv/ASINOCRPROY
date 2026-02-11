@@ -23,20 +23,21 @@ async function uploadFiles(req, res, next) {
       });
     }
 
-    const results = await documentService.registerUploadedFiles(
+    const { expediente_id, documentos } = await documentService.registerUploadedFiles(
       req.files,
       req.usuario.id
     );
 
-    const exitosos = results.filter((r) => r.resultado === "registrado").length;
-    const errores = results.filter((r) => r.resultado === "error").length;
+    const exitosos = documentos.filter((r) => r.resultado === "registrado").length;
+    const errores = documentos.filter((r) => r.resultado === "error").length;
 
     res.status(201).json({
       mensaje: `Carga finalizada con éxito. Se procesaron ${exitosos} cartas.`,
+      expediente_id,
       total: req.files.length,
       exitosos,
       errores,
-      documentos: results,
+      documentos,
     });
   } catch (err) {
     next(err);

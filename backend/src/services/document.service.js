@@ -1,56 +1,53 @@
 /**
  * Servicio de documentos.
  *
- * Gestiona la lógica de negocio para:
- * - Registrar cartas subidas en la base de datos.
- * - Crear expedientes automáticamente si no existen (RN-03).
- * - Consultar documentos y su estado.
+ * Flujo de carga (HU-04, modelo v3):
+ *   1. Operador sube 1-2 cartas
+ *   2. Se crea 1 EXPEDIENTE nuevo (estado: pendiente)
+ *   3. Se crean N registros en documentos, todos con ese expediente_id
+ *   4. OCR+Gemini procesa después → extrae datos y vincula cliente
  *
- * Flujo de carga (HU-04):
- *   1. Multer guarda archivo en disco → ruta_archivo
- *   2. Se crea registro en tabla documentos (estado: pendiente)
- *   3. El procesamiento OCR + Gemini se ejecutará después (HU siguiente)
+ * Modelo:  clientes → expedientes → documentos
+ *          (1 carga = 1 expediente = 1-2 cartas de un mismo servicio)
  */
 
 const { query } = require("../config/database");
 const path = require("path");
 
 /**
- * Registra múltiples archivos subidos en la base de datos.
+ * Registra una carga: crea 1 expediente + N documentos.
  * @param {Array} files - Archivos procesados por Multer
  * @param {number} userId - ID del usuario que sube
- * @returns {Array} Documentos registrados
+ * @returns {Object} { expediente_id, documentos[] }
  */
 async function registerUploadedFiles(files, userId) {
-  const results = [];
+  // 1. Crear expediente
+  const expResult = await query(
+    `INSERT INTO expedientes (estado, creado_por)
+     VALUES ('pendiente', $1)
+     RETURNING id`,
+    [userId]
+  );
+  const expedienteId = expResult.rows[0].id;
 
+  // 2. Registrar cada documento vinculado al expediente
+  const results = [];
   for (const file of files) {
     try {
-      // Ruta relativa desde la raíz del proyecto
-      const rutaRelativa = path.relative(process.cwd(), file.path).replace(/\\/g, "/");
-
+      const rutaRelativa = path
+        .relative(process.cwd(), file.path)
+        .replace(/\\/g, "/");
       const ext = path.extname(file.originalname).toLowerCase().replace(".", "");
 
       const result = await query(
         `INSERT INTO documentos 
           (expediente_id, ruta_archivo, nombre_archivo, tipo_archivo, tamano_bytes, estado, subido_por)
-         VALUES 
-          ($1, $2, $3, $4, $5, 'pendiente', $6)
+         VALUES ($1, $2, $3, $4, $5, 'pendiente', $6)
          RETURNING id, nombre_archivo, tipo_archivo, tamano_bytes, estado, creado_en`,
-        [
-          null, // expediente_id se asigna después del procesamiento OCR
-          rutaRelativa,
-          file.originalname,
-          ext,
-          file.size,
-          userId,
-        ]
+        [expedienteId, rutaRelativa, file.originalname, ext, file.size, userId]
       );
 
-      results.push({
-        ...result.rows[0],
-        resultado: "registrado",
-      });
+      results.push({ ...result.rows[0], resultado: "registrado" });
     } catch (err) {
       results.push({
         nombre_archivo: file.originalname,
@@ -60,13 +57,12 @@ async function registerUploadedFiles(files, userId) {
     }
   }
 
-  return results;
+  return { expediente_id: expedienteId, documentos: results };
 }
 
 /**
- * Obtiene la lista de documentos con paginación.
- * @param {Object} options - { page, limit, estado }
- * @returns {Object} { documentos, total, page, totalPages }
+ * Lista documentos con paginación.
+ * JOIN: documentos → expedientes → clientes
  */
 async function listDocuments({ page = 1, limit = 20, estado = null }) {
   const offset = (page - 1) * limit;
@@ -78,22 +74,21 @@ async function listDocuments({ page = 1, limit = 20, estado = null }) {
     whereClause = `WHERE d.estado = $${params.length}`;
   }
 
-  // Total
   const countResult = await query(
     `SELECT COUNT(*) FROM documentos d ${whereClause}`,
     params
   );
   const total = parseInt(countResult.rows[0].count);
 
-  // Documentos
   params.push(limit, offset);
   const docsResult = await query(
-    `SELECT d.id, d.nombre_archivo, d.tipo_archivo, d.tamano_bytes,
-            d.numero_carta, d.fecha_carta, d.anexo, d.estado,
-            d.confianza_ocr, d.creado_en,
-            e.nis, e.cliente
+    `SELECT d.id, d.expediente_id, d.nombre_archivo, d.tipo_archivo,
+            d.tamano_bytes, d.numero_carta, d.fecha_carta, d.anexo,
+            d.estado, d.confianza_ocr, d.creado_en,
+            c.nis, c.nombre AS cliente, c.direccion, c.distrito
      FROM documentos d
-     LEFT JOIN expedientes e ON d.expediente_id = e.id
+     JOIN expedientes e ON d.expediente_id = e.id
+     LEFT JOIN clientes c ON e.cliente_id = c.id
      ${whereClause}
      ORDER BY d.creado_en DESC
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -109,15 +104,15 @@ async function listDocuments({ page = 1, limit = 20, estado = null }) {
 }
 
 /**
- * Obtiene un documento por ID con sus parámetros VMA.
- * @param {number} id
- * @returns {Object} Documento con parámetros
+ * Obtiene un documento por ID con cliente y parámetros VMA.
  */
 async function getDocumentById(id) {
   const docResult = await query(
-    `SELECT d.*, e.nis, e.cliente, e.direccion, e.distrito
+    `SELECT d.*,
+            c.nis, c.nia, c.nombre AS cliente, c.direccion, c.distrito
      FROM documentos d
-     LEFT JOIN expedientes e ON d.expediente_id = e.id
+     JOIN expedientes e ON d.expediente_id = e.id
+     LEFT JOIN clientes c ON e.cliente_id = c.id
      WHERE d.id = $1`,
     [id]
   );
@@ -128,7 +123,6 @@ async function getDocumentById(id) {
 
   const doc = docResult.rows[0];
 
-  // Obtener parámetros VMA
   const paramsResult = await query(
     `SELECT rp.resultado_valor, cp.codigo, cp.nombre_completo, 
             cp.unidad, cp.expresion, cp.vma_normado, cp.anexo
@@ -139,7 +133,6 @@ async function getDocumentById(id) {
   );
 
   doc.parametros_vma = paramsResult.rows;
-
   return doc;
 }
 

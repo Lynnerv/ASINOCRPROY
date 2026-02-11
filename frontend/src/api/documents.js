@@ -5,12 +5,6 @@
 import api from "./auth";
 
 export const documentApi = {
-  /**
-   * Sube múltiples cartas al servidor.
-   * @param {File[]} files - Archivos a subir
-   * @param {Function} onProgress - Callback con porcentaje (0-100)
-   * @returns {Promise} Respuesta del servidor
-   */
   upload: (files, onProgress) => {
     const formData = new FormData();
     files.forEach((file) => formData.append("cartas", file));
@@ -26,6 +20,43 @@ export const documentApi = {
   },
 
   list: (params) => api.get("/documentos", { params }),
-
   getById: (id) => api.get(`/documentos/${id}`),
+
+  /** Resumen de estados */
+  getProcessStatus: () => api.get("/procesar/estado"),
+
+  /** Documentos pendientes */
+  getPending: (includeErrors = false) =>
+    api.get("/procesar/pendientes", {
+      params: { incluir_errores: includeErrors },
+    }),
+
+  /** Iniciar procesamiento (retorna jobId) */
+  startProcessing: () => api.post("/procesar/iniciar"),
+
+  /** Job activo (si existe) */
+  getActiveJob: () => api.get("/procesar/job/activo"),
+
+  /** Estado de un job (polling) */
+  getJobStatus: (jobId) => api.get(`/procesar/job/${jobId}/estado`),
+};
+
+export const expedienteApi = {
+  /** Expedientes con documentos pendientes (panel de control) */
+  listPending: () => api.get("/expedientes/pendientes"),
+
+  /** Todos los expedientes (para selector) */
+  listAll: () => api.get("/expedientes"),
+
+  /** Crear expediente vacío */
+  create: () => api.post("/expedientes"),
+
+  /** Eliminar un documento */
+  deleteDocument: (docId) => api.delete(`/expedientes/documento/${docId}`),
+
+  /** Mover documento a otro expediente */
+  moveDocument: (docId, targetExpId) =>
+    api.patch(`/expedientes/documento/${docId}/mover`, {
+      expediente_destino_id: targetExpId,
+    }),
 };
