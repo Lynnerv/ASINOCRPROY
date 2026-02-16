@@ -6,7 +6,7 @@
  */
 
 import { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useNavigate, Navigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import "../styles/login.css";
@@ -160,6 +160,12 @@ export default function Login() {
               )}
             </button>
           </form>
+
+          <div className="forgot-link-wrapper">
+            <Link to="/recuperar" className="forgot-link">
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
 
           <div className="login-footer">
             Asin Solutions © {new Date().getFullYear()}

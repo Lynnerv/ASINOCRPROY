@@ -12,6 +12,8 @@ import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import UploadPage from "./pages/Upload";
 import ProcessPage from "./pages/Process";
@@ -24,6 +26,8 @@ export default function App() {
         <Routes>
           {/* Ruta pública (sin Layout) */}
           <Route path="/login" element={<Login />} />
+          <Route path="/recuperar" element={<ForgotPassword />} />
+          <Route path="/restablecer/:token" element={<ResetPassword />} />
 
           {/* Rutas protegidas (con Layout: header + footer) */}
           <Route

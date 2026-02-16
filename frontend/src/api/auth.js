@@ -42,6 +42,12 @@ export const authApi = {
   login: (correo, password) => api.post("/auth/login", { correo, password }),
   getProfile: () => api.get("/auth/perfil"),
   createUser: (data) => api.post("/auth/usuarios", data),
+
+  // HU-02: Recuperación de contraseña
+  requestPasswordReset: (correo) => api.post("/auth/recuperar", { correo }),
+  verifyResetToken: (token) => api.get(`/auth/verificar-token/${token}`),
+  resetPassword: (token, password) =>
+    api.post("/auth/restablecer", { token, password }),
 };
 
 export default api;

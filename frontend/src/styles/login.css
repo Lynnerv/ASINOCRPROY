@@ -58,7 +58,7 @@
 }
 
 .branding-logo-img {
-  height: 80px;
+  height: 40px;
   width: auto;
   object-fit: contain;
   border-radius: 6px;
@@ -301,4 +301,148 @@
     border-left: none;
     padding: 2.5rem 2rem;
   }
+}
+
+/* ============================================
+   HU-02: Password Recovery
+   ============================================ */
+
+/* Forgot password link */
+.forgot-link-wrapper {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.forgot-link {
+  color: var(--color-primary);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.forgot-link:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+/* Back link */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  text-decoration: none;
+  margin-bottom: 1.5rem;
+  transition: color var(--transition);
+}
+
+.back-link:hover {
+  color: var(--color-primary);
+}
+
+/* Reset email sent / success */
+.reset-sent {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.reset-sent-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(22, 163, 74, 0.08);
+  color: #16a34a;
+  margin-bottom: 1rem;
+}
+
+.reset-sent h2 {
+  margin-bottom: 0.5rem;
+}
+
+.reset-sent-note {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  margin-top: 0.75rem;
+  margin-bottom: 1.5rem;
+  padding: 10px 14px;
+  background: #fefce8;
+  border-radius: 8px;
+  border: 1px solid #fef08a;
+}
+
+/* Token invalid */
+.reset-invalid {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.reset-invalid-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+  margin-bottom: 1rem;
+}
+
+.reset-invalid h2 {
+  margin-bottom: 0.5rem;
+}
+
+/* Verifying state */
+.reset-verifying {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 4rem 0;
+  color: var(--color-text-muted);
+}
+
+/* Password policy rules */
+.pw-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 14px;
+  margin-bottom: 1rem;
+  background: var(--color-surface-hover, #f8fafc);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.pw-rule {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  transition: color 0.2s;
+}
+
+.pw-rule.pw-met {
+  color: #16a34a;
+}
+
+.pw-mismatch {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.78rem;
+  color: #dc2626;
+}
+
+/* Spinner animation (reuse) */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

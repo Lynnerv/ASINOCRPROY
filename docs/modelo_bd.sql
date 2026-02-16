@@ -33,6 +33,8 @@ CREATE TABLE usuarios (
     rol             VARCHAR(20) NOT NULL CHECK (rol IN ('administrador', 'operador')),
     activo          BOOLEAN DEFAULT TRUE,
     ultimo_acceso   TIMESTAMP,
+    reset_token         VARCHAR(255),
+    reset_token_expira  TIMESTAMP,
     creado_en       TIMESTAMP DEFAULT NOW(),
     actualizado_en  TIMESTAMP DEFAULT NOW()
 );
