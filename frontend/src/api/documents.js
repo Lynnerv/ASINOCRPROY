@@ -42,21 +42,26 @@ export const documentApi = {
 };
 
 export const expedienteApi = {
-  /** Expedientes con documentos pendientes (panel de control) */
   listPending: () => api.get("/expedientes/pendientes"),
-
-  /** Todos los expedientes (para selector) */
   listAll: () => api.get("/expedientes"),
-
-  /** Crear expediente vacío */
   create: () => api.post("/expedientes"),
-
-  /** Eliminar un documento */
   deleteDocument: (docId) => api.delete(`/expedientes/documento/${docId}`),
-
-  /** Mover documento a otro expediente */
   moveDocument: (docId, targetExpId) =>
     api.patch(`/expedientes/documento/${docId}/mover`, {
       expediente_destino_id: targetExpId,
     }),
+};
+
+export const statsApi = {
+  getGlobal: () => api.get("/stats"),
+  getRecent: (limit = 10) => api.get("/stats/recientes", { params: { limit } }),
+  getUserStats: () => api.get("/stats/usuarios"),
+};
+
+export const usersApi = {
+  list: () => api.get("/usuarios"),
+  create: (data) => api.post("/usuarios", data),
+  update: (id, data) => api.put(`/usuarios/${id}`, data),
+  resetPassword: (id, password) =>
+    api.patch(`/usuarios/${id}/password`, { password }),
 };

@@ -13,18 +13,36 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { LogOut, User } from "lucide-react";
 import "../styles/layout.css";
 
-const NAV_ITEMS = [
-  { to: "/", label: "Inicio" },
-  { to: "/cargar", label: "Cargar Cartas" },
-  { to: "/procesar", label: "Procesar" },
-  { to: "/expedientes", label: "Expedientes", disabled: true },
-  { to: "/reportes", label: "Reportes", disabled: true },
-];
+/**
+ * Navegación según rol:
+ *   admin   → Inicio, Cargar, Procesar, Expedientes, Reportes, Usuarios
+ *   operador → Inicio, Cargar, Procesar, Expedientes, Reportes
+ *   otro    → solo Inicio
+ */
+function getNavItems(rol) {
+  const common = [
+    { to: "/", label: "Inicio" },
+    { to: "/cargar", label: "Cargar Cartas" },
+    { to: "/procesar", label: "Procesar" },
+    { to: "/expedientes", label: "Expedientes", disabled: true },
+    { to: "/reportes", label: "Reportes", disabled: true },
+  ];
+
+  if (rol === "administrador") {
+    return [...common, { to: "/usuarios", label: "Usuarios" }];
+  }
+  if (rol === "operador") {
+    return common;
+  }
+  // Rol no definido
+  return [{ to: "/", label: "Inicio" }];
+}
 
 export default function Layout({ children }) {
   const { usuario, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const navItems = getNavItems(usuario?.rol);
 
   function handleLogout() {
     logout();
@@ -43,7 +61,7 @@ export default function Layout({ children }) {
             </Link>
 
             <nav className="header-nav">
-              {NAV_ITEMS.map((item) => {
+              {navItems.map((item) => {
                 const isActive = location.pathname === item.to;
 
                 if (item.disabled) {
