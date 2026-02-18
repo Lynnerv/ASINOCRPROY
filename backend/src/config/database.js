@@ -1,27 +1,43 @@
 /**
  * Configuración de conexión a PostgreSQL.
  *
- * Utiliza pg.Pool para manejar un pool de conexiones reutilizables,
- * evitando abrir/cerrar conexiones por cada consulta.
+ * Soporta dos modos:
+ *   1. DATABASE_URL (Supabase / producción): una sola cadena de conexión
+ *   2. Variables individuales (desarrollo local): DB_HOST, DB_PORT, etc.
+ *
+ * Supabase requiere SSL — se activa automáticamente cuando se usa DATABASE_URL
+ * o cuando DB_SSL=true.
  */
 
 const { Pool } = require("pg");
 
-const pool = new Pool({
-  host: process.env.DB_HOST || "localhost",
-  port: parseInt(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME || "asin_ocr_db",
-  user: process.env.DB_USER || "postgres",
-  password: process.env.DB_PASSWORD || "",
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
-});
+const isSSL = process.env.DB_SSL === "true" || !!process.env.DATABASE_URL;
 
-// Log de conexión exitosa (solo al iniciar)
+const poolConfig = process.env.DATABASE_URL
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    }
+  : {
+      host: process.env.DB_HOST || "localhost",
+      port: parseInt(process.env.DB_PORT) || 5432,
+      database: process.env.DB_NAME || "asin_ocr_db",
+      user: process.env.DB_USER || "postgres",
+      password: process.env.DB_PASSWORD || "",
+      ...(isSSL && { ssl: { rejectUnauthorized: false } }),
+      max: 10,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    };
+
+const pool = new Pool(poolConfig);
+
 pool.on("connect", () => {
   if (process.env.NODE_ENV !== "production") {
-    console.log("  ✓ Conexión a PostgreSQL establecida");
+    console.log("  ✓ Conexión a PostgreSQL establecida" + (isSSL ? " (SSL)" : ""));
   }
 });
 

@@ -65,14 +65,15 @@ async function requestReset(correo) {
 
   // Generar token seguro
   const token = crypto.randomBytes(32).toString("hex");
-  const expira = new Date(Date.now() + TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
 
-  // Guardar token en BD
+  // Guardar token en BD (expira calculada por PostgreSQL para evitar desfase de timezone)
   await query(
     `UPDATE usuarios 
-     SET reset_token = $2, reset_token_expira = $3, actualizado_en = NOW()
+     SET reset_token = $2, 
+         reset_token_expira = NOW() + INTERVAL '1 hour',
+         actualizado_en = NOW()
      WHERE id = $1`,
-    [usuario.id, token, expira]
+    [usuario.id, token]
   );
 
   // Enviar email
