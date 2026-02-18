@@ -142,14 +142,13 @@ export default function Dashboard() {
                 </div>
               </Link>
 
-              <div className="action-card action-card-disabled">
-                <div className="action-icon action-violet"><BarChart3 size={22} /></div>
+              <Link to="/expedientes" className="action-card action-card-link">
+                <div className="action-icon action-teal"><FolderOpen size={22} /></div>
                 <div className="action-body">
-                  <h3>Estadísticas Globales</h3>
-                  <p>Métricas de rendimiento y uso del sistema</p>
-                  <span className="action-badge">Próximamente</span>
+                  <h3>Expedientes</h3>
+                  <p>Revisar expedientes procesados y datos extraídos</p>
                 </div>
-              </div>
+              </Link>
             </>
           )}
 
@@ -172,14 +171,13 @@ export default function Dashboard() {
                 </div>
               </Link>
 
-              <div className="action-card action-card-disabled">
+              <Link to="/expedientes" className="action-card action-card-link">
                 <div className="action-icon action-teal"><FolderOpen size={22} /></div>
                 <div className="action-body">
                   <h3>Expedientes</h3>
-                  <p>Consultar expedientes agrupados por cliente</p>
-                  <span className="action-badge">Próximamente</span>
+                  <p>Revisar expedientes procesados y datos extraídos</p>
                 </div>
-              </div>
+              </Link>
 
               <div className="action-card action-card-disabled">
                 <div className="action-icon action-violet"><FileText size={22} /></div>

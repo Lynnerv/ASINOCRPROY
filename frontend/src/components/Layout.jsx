@@ -24,7 +24,7 @@ function getNavItems(rol) {
     { to: "/", label: "Inicio" },
     { to: "/cargar", label: "Cargar Cartas" },
     { to: "/procesar", label: "Procesar" },
-    { to: "/expedientes", label: "Expedientes", disabled: true },
+    { to: "/expedientes", label: "Expedientes" },
     { to: "/reportes", label: "Reportes", disabled: true },
   ];
 
@@ -34,7 +34,6 @@ function getNavItems(rol) {
   if (rol === "operador") {
     return common;
   }
-  // Rol no definido
   return [{ to: "/", label: "Inicio" }];
 }
 

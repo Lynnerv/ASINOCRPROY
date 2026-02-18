@@ -183,7 +183,140 @@ async function moveDocument(documentId, targetExpedienteId) {
 module.exports = {
   listPendingExpedientes,
   listAllExpedientes,
+  listProcessedExpedientes,
+  getExpedienteDetail,
   createEmptyExpediente,
   deleteDocument,
   moveDocument,
 };
+
+/**
+ * Lista expedientes procesados con paginación y filtros (HU-06).
+ *
+ * Agrupación: 1 fila por expediente, con conteo de documentos.
+ * Filtros: estado del expediente, búsqueda por NIS/cliente.
+ * Orden: fecha más reciente descendente.
+ */
+async function listProcessedExpedientes({ page = 1, limit = 15, estado = null, buscar = null }) {
+  const offset = (page - 1) * limit;
+  const conditions = [];
+  const params = [];
+
+  // Solo expedientes que tienen al menos 1 documento procesado o validado
+  conditions.push(
+    `e.id IN (SELECT DISTINCT expediente_id FROM documentos WHERE estado IN ('procesado','validado'))`
+  );
+
+  if (estado) {
+    params.push(estado);
+    conditions.push(`e.estado = $${params.length}`);
+  }
+
+  if (buscar) {
+    params.push(`%${buscar}%`);
+    const idx = params.length;
+    conditions.push(`(c.nis ILIKE $${idx} OR c.nombre ILIKE $${idx})`);
+  }
+
+  const whereClause = `WHERE ${conditions.join(" AND ")}`;
+
+  // Count
+  const countResult = await query(
+    `SELECT COUNT(DISTINCT e.id)::int AS total
+     FROM expedientes e
+     LEFT JOIN clientes c ON e.cliente_id = c.id
+     ${whereClause}`,
+    params
+  );
+  const total = countResult.rows[0].total;
+
+  // Expedientes with aggregated info
+  params.push(limit, offset);
+  const expResult = await query(
+    `SELECT e.id, e.estado, e.creado_en,
+            c.nis, c.nombre AS cliente, c.direccion, c.distrito,
+            COUNT(d.id)::int AS num_documentos,
+            MAX(d.fecha_carta) AS fecha_mas_reciente,
+            COUNT(d.id) FILTER (WHERE d.estado = 'validado')::int AS validados,
+            COUNT(d.id) FILTER (WHERE d.estado = 'procesado')::int AS procesados,
+            COUNT(d.id) FILTER (WHERE d.estado = 'error')::int AS errores,
+            ARRAY_AGG(DISTINCT d.anexo) FILTER (WHERE d.anexo IS NOT NULL) AS anexos
+     FROM expedientes e
+     LEFT JOIN clientes c ON e.cliente_id = c.id
+     LEFT JOIN documentos d ON d.expediente_id = e.id
+     ${whereClause}
+     GROUP BY e.id, e.estado, e.creado_en, c.nis, c.nombre, c.direccion, c.distrito
+     ORDER BY MAX(d.fecha_carta) DESC NULLS LAST, e.creado_en DESC
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
+
+  return {
+    expedientes: expResult.rows,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  };
+}
+
+/**
+ * Obtiene el detalle completo de un expediente (HU-06).
+ *
+ * Incluye:
+ *   - Datos del cliente
+ *   - Todos los documentos con sus parámetros VMA
+ */
+async function getExpedienteDetail(expedienteId) {
+  // Expediente + cliente
+  const expResult = await query(
+    `SELECT e.id, e.estado, e.observaciones, e.creado_en, e.actualizado_en,
+            c.id AS cliente_id, c.nis, c.nia, c.nombre AS cliente,
+            c.direccion, c.distrito
+     FROM expedientes e
+     LEFT JOIN clientes c ON e.cliente_id = c.id
+     WHERE e.id = $1`,
+    [expedienteId]
+  );
+
+  if (expResult.rows.length === 0) {
+    throw Object.assign(new Error("Expediente no encontrado"), { status: 404 });
+  }
+
+  const expediente = expResult.rows[0];
+
+  // Documentos
+  const docsResult = await query(
+    `SELECT id, nombre_archivo, tipo_archivo, tamano_bytes, ruta_archivo,
+            numero_carta, fecha_carta, tipo_notificacion, anexo,
+            numero_acta, fecha_muestra, numero_informe,
+            estado, confianza_ocr, creado_en
+     FROM documentos
+     WHERE expediente_id = $1
+     ORDER BY anexo ASC NULLS LAST, creado_en ASC`,
+    [expedienteId]
+  );
+
+  // Para cada documento, obtener sus parámetros VMA
+  const documentos = [];
+  for (const doc of docsResult.rows) {
+    const paramsResult = await query(
+      `SELECT rp.id AS resultado_id, rp.resultado_valor,
+              cp.codigo, cp.nombre_completo, cp.unidad,
+              cp.expresion, cp.vma_normado, cp.anexo
+       FROM resultados_parametros rp
+       JOIN catalogo_parametros cp ON rp.parametro_id = cp.id
+       WHERE rp.documento_id = $1
+       ORDER BY cp.id ASC`,
+      [doc.id]
+    );
+
+    documentos.push({
+      ...doc,
+      imagen_url: `/${doc.ruta_archivo.replace(/\\/g, "/")}`,
+      parametros_vma: paramsResult.rows,
+    });
+  }
+
+  expediente.documentos = documentos;
+  return expediente;
+}

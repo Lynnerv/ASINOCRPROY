@@ -1,11 +1,16 @@
 /**
- * Rutas de expedientes (panel de control).
+ * Rutas de expedientes.
  *
- * GET    /api/expedientes/pendientes     → Expedientes con docs pendientes
- * GET    /api/expedientes                → Todos los expedientes
- * POST   /api/expedientes                → Crear expediente vacío
- * DELETE /api/expedientes/documento/:id  → Eliminar documento
- * PATCH  /api/expedientes/documento/:id/mover → Mover documento
+ * Panel de control:
+ *   GET    /api/expedientes/pendientes           → Expedientes con docs pendientes
+ *   GET    /api/expedientes                      → Todos los expedientes
+ *   POST   /api/expedientes                      → Crear expediente vacío
+ *   DELETE /api/expedientes/documento/:id        → Eliminar documento
+ *   PATCH  /api/expedientes/documento/:id/mover  → Mover documento
+ *
+ * HU-06 - Ver expedientes procesados:
+ *   GET    /api/expedientes/procesados           → Lista paginada con filtros
+ *   GET    /api/expedientes/:id/detalle          → Detalle completo (docs + VMA)
  */
 
 const { Router } = require("express");
@@ -13,6 +18,39 @@ const auth = require("../middlewares/auth.middleware");
 const expedienteService = require("../services/expediente.service");
 
 const router = Router();
+
+// ── HU-06: Expedientes procesados ──
+
+// Lista paginada con filtros y búsqueda
+router.get("/procesados", auth, async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const estado = req.query.estado || null;
+    const buscar = req.query.buscar || null;
+
+    const data = await expedienteService.listProcessedExpedientes({
+      page, limit, estado, buscar,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Detalle completo de un expediente (documentos + parámetros VMA)
+router.get("/:id/detalle", auth, async (req, res, next) => {
+  try {
+    const expediente = await expedienteService.getExpedienteDetail(
+      parseInt(req.params.id)
+    );
+    res.json({ expediente });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Panel de control ──
 
 // Listar expedientes con documentos pendientes (para panel de control)
 router.get("/pendientes", auth, async (req, res, next) => {

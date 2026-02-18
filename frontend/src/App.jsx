@@ -17,6 +17,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import UploadPage from "./pages/Upload";
 import ProcessPage from "./pages/Process";
+import ExpedientesPage from "./pages/ExpedientesProcessed";
 import UsersPage from "./pages/Users";
 
 export default function App() {
@@ -56,6 +57,16 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <ProcessPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/expedientes"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <ExpedientesPage />
                 </Layout>
               </ProtectedRoute>
             }
