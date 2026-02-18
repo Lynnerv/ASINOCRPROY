@@ -151,27 +151,144 @@ async function linkExpedienteToCliente(expedienteId, clienteId) {
 
 /**
  * Inserta los parametros VMA extraidos en resultados_parametros.
+ *
+ * Matching robusto contra catalogo_parametros:
+ *   1. Código entre paréntesis: "Demanda... (DBO5)" → busca codigo='DBO5'
+ *   2. Código/expresión directo del campo parametro
+ *   3. Match por nombre normalizado (sin acentos, JS-side) con ILIKE
+ *   4. Match por palabras clave del nombre
+ *
+ * Cada parámetro se procesa independientemente (try-catch individual).
  */
 async function insertParametros(documentoId, parametros) {
   if (!parametros || parametros.length === 0) return;
 
-  for (const p of parametros) {
-    const catalogo = await query(
-      `SELECT id FROM catalogo_parametros 
-       WHERE codigo = $1 OR nombre_completo ILIKE $2 OR expresion = $1
-       LIMIT 1`,
-      [p.parametro || p.expresion, `%${p.parametro}%`]
-    );
+  let inserted = 0;
+  let failed = 0;
 
-    if (catalogo.rows.length > 0) {
-      await query(
-        `INSERT INTO resultados_parametros (documento_id, parametro_id, resultado_valor)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (documento_id, parametro_id) DO UPDATE SET resultado_valor = $3`,
-        [documentoId, catalogo.rows[0].id, p.resultado_valor || null]
-      );
+  for (const p of parametros) {
+    try {
+      const nombreRaw = p.parametro || p.expresion || "";
+      const valorRaw = p.resultado_valor;
+
+      // Saltar si no hay valor
+      if (valorRaw == null || String(valorRaw).trim() === "") {
+        console.warn(`[Params] Sin valor para: "${nombreRaw}" — saltando`);
+        continue;
+      }
+
+      // 1. Extraer código entre paréntesis: "Demanda Bioquímica de Oxígeno (DBO5)" → "DBO5"
+      const codeMatch = nombreRaw.match(/\(([^)]+)\)\s*$/);
+      const codeFromParens = codeMatch ? codeMatch[1].trim().toUpperCase() : null;
+
+      // 2. Limpiar nombre (sin paréntesis ni acentos)
+      const nombreSinParens = nombreRaw.replace(/\s*\([^)]*\)\s*$/, "").trim();
+      const nombreNorm = normalizeStr(nombreSinParens);
+
+      let catalogoId = null;
+
+      // Intento 1: match por código extraído de paréntesis
+      if (codeFromParens) {
+        catalogoId = await findParam(
+          `SELECT id FROM catalogo_parametros 
+           WHERE UPPER(codigo) = $1 OR UPPER(expresion) = $1
+           LIMIT 1`,
+          [codeFromParens]
+        );
+      }
+
+      // Intento 2: match por nombre directo como código/expresión
+      if (!catalogoId) {
+        catalogoId = await findParam(
+          `SELECT id FROM catalogo_parametros 
+           WHERE UPPER(codigo) = UPPER($1) OR UPPER(expresion) = UPPER($1)
+           LIMIT 1`,
+          [nombreRaw.trim()]
+        );
+      }
+
+      // Intento 3: match por nombre normalizado con ILIKE (sin unaccent SQL)
+      if (!catalogoId && nombreNorm.length > 3) {
+        catalogoId = await findParam(
+          `SELECT id FROM catalogo_parametros 
+           WHERE LOWER(nombre_completo) ILIKE $1
+           LIMIT 1`,
+          [`%${nombreNorm}%`]
+        );
+      }
+
+      // Intento 4: match por palabras clave del nombre
+      if (!catalogoId) {
+        const keywords = extractKeywords(nombreSinParens);
+        for (const kw of keywords) {
+          catalogoId = await findParam(
+            `SELECT id FROM catalogo_parametros 
+             WHERE LOWER(nombre_completo) ILIKE $1
+             LIMIT 1`,
+            [`%${kw}%`]
+          );
+          if (catalogoId) break;
+        }
+      }
+
+      if (catalogoId) {
+        await query(
+          `INSERT INTO resultados_parametros (documento_id, parametro_id, resultado_valor)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (documento_id, parametro_id) DO UPDATE SET resultado_valor = $3`,
+          [documentoId, catalogoId, String(valorRaw)]
+        );
+        inserted++;
+      } else {
+        console.warn(
+          `[Params] No match en catálogo para: "${nombreRaw}" (código: ${codeFromParens || "N/A"})`
+        );
+        failed++;
+      }
+    } catch (err) {
+      console.error(`[Params] Error insertando parámetro "${p.parametro}":`, err.message);
+      failed++;
+      // Continua con el siguiente parámetro — NO detiene el loop
     }
   }
+
+  console.log(`[Params] doc=${documentoId}: ${inserted} insertados, ${failed} fallidos de ${parametros.length}`);
+}
+
+/**
+ * Helper: busca un parámetro en catálogo, devuelve id o null.
+ */
+async function findParam(sql, params) {
+  try {
+    const result = await query(sql, params);
+    return result.rows.length > 0 ? result.rows[0].id : null;
+  } catch {
+    return null; // SQL falló (ej: extensión no disponible) → no romper
+  }
+}
+
+/**
+ * Normaliza string: minúsculas, sin acentos, sin caracteres especiales.
+ */
+function normalizeStr(str) {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")  // quitar acentos
+    .replace(/[^a-z0-9\s]/g, "")      // solo alfanumérico
+    .trim();
+}
+
+/**
+ * Extrae palabras clave significativas de un nombre de parámetro.
+ * Ej: "Demanda Bioquímica de Oxígeno" → ["bioquimica", "oxigeno", "demanda"]
+ */
+function extractKeywords(name) {
+  const stopwords = ["de", "del", "la", "el", "los", "las", "y", "en", "total", "mg", "l"];
+  return normalizeStr(name)
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !stopwords.includes(w))
+    .sort((a, b) => b.length - a.length); // más largas primero = más específicas
 }
 
 // ── Procesamiento ──────────────────────────────────────────────────────
