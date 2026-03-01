@@ -37,6 +37,7 @@ async function registerUploadedFiles(files, userId) {
       const rutaRelativa = path
         .relative(process.cwd(), file.path)
         .replace(/\\/g, "/");
+
       const ext = path.extname(file.originalname).toLowerCase().replace(".", "");
 
       const result = await query(
@@ -64,6 +65,11 @@ async function registerUploadedFiles(files, userId) {
  * Lista documentos con paginación + filtros HU-08
  * Filtros: estado, buscar, nis, cliente, tipo (tipo_notificacion), rango de fechas (fecha_carta)
  * Orden: fecha desc por defecto
+ *
+ * IMPORTANTE:
+ * - UI quiere: pendiente / en_revision / procesado / archivado
+ * - BD hoy tiene: pendiente / procesando / procesado / validado / error
+ * => mapeamos estado UI -> estado BD sin cambiar tu flujo existente.
  */
 async function listDocuments({
   page = 1,
@@ -73,17 +79,40 @@ async function listDocuments({
   nis = null,
   cliente = null,
   tipo = null,
-  fechaInicio = null,
-  fechaFin = null,
+  fecha_inicio = null,  // soporta snake_case desde frontend
+  fecha_fin = null,     // soporta snake_case desde frontend
+  fechaInicio = null,   // soporta camelCase por compatibilidad
+  fechaFin = null,      // soporta camelCase por compatibilidad
 }) {
   const offset = (page - 1) * limit;
   const conditions = [];
   const params = [];
 
-  // estado
+  // normalizar fechas (acepta ambos nombres)
+  const fIni = fechaInicio || fecha_inicio || null;
+  const fFin = fechaFin || fecha_fin || null;
+
+  // estado (map UI -> BD)
   if (estado) {
-    params.push(estado);
-    conditions.push(`d.estado = $${params.length}`);
+    const estadoMap = {
+      en_revision: ["procesando"],
+      archivado: ["validado"],
+      pendiente: ["pendiente"],
+      procesado: ["procesado"],
+    };
+
+    const estadosDB = estadoMap[estado] || [estado];
+
+    if (estadosDB.length === 1) {
+      params.push(estadosDB[0]);
+      conditions.push(`d.estado = $${params.length}`);
+    } else {
+      const placeholders = estadosDB
+        .map((_, i) => `$${params.length + i + 1}`)
+        .join(", ");
+      params.push(...estadosDB);
+      conditions.push(`d.estado IN (${placeholders})`);
+    }
   }
 
   // nis
@@ -104,7 +133,7 @@ async function listDocuments({
     conditions.push(`d.tipo_notificacion ILIKE $${params.length}`);
   }
 
-  // buscar (texto libre sobre NIS, cliente, numero_carta, nombre_archivo, tipo)
+  // buscar (texto libre)
   if (buscar) {
     params.push(`%${buscar}%`);
     const idx = params.length;
@@ -118,12 +147,12 @@ async function listDocuments({
   }
 
   // rango fechas (fecha_carta)
-  if (fechaInicio) {
-    params.push(fechaInicio);
+  if (fIni) {
+    params.push(fIni);
     conditions.push(`d.fecha_carta >= $${params.length}`);
   }
-  if (fechaFin) {
-    params.push(fechaFin);
+  if (fFin) {
+    params.push(fFin);
     conditions.push(`d.fecha_carta <= $${params.length}`);
   }
 

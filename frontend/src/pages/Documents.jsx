@@ -12,13 +12,13 @@ import {
 } from "lucide-react";
 import "../styles/documents.css";
 
+// Estados que quieres mostrar (UI)
 const ESTADOS = [
   { value: "", label: "Todos" },
   { value: "pendiente", label: "Pendiente" },
-  { value: "procesando", label: "OCR" },
+  { value: "en_revision", label: "En revisión" },
   { value: "procesado", label: "Procesado" },
-  { value: "validado", label: "Validado" },
-  { value: "error", label: "Error" },
+  { value: "archivado", label: "Archivado" },
 ];
 
 export default function DocumentsPage() {
@@ -55,7 +55,10 @@ export default function DocumentsPage() {
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [total, setTotal] = useState(0);
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(total / limit)),
+    [total, limit]
+  );
 
   async function load() {
     setLoading(true);
@@ -65,6 +68,7 @@ export default function DocumentsPage() {
         limit,
         ...removeEmpty(query),
       };
+
       const res = await documentApi.list(params);
       setDocumentos(res.data.documentos || []);
       setTotal(res.data.total || 0);
@@ -93,7 +97,7 @@ export default function DocumentsPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  // Cuando cambias filtros avanzados, quieres refrescar manteniendo búsqueda (criterio HU)
+  // Cuando cambias filtros avanzados, refresca manteniendo búsqueda (criterio HU-08)
   function applyFilterInstant(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
     setPage(1);
@@ -118,7 +122,6 @@ export default function DocumentsPage() {
   async function verDetalle(id) {
     try {
       const res = await documentApi.getById(id);
-      // por ahora simple (luego HU-09 lo haces bonito)
       alert(JSON.stringify(res.data.documento, null, 2));
     } catch (err) {
       console.error("Error detalle:", err);
@@ -128,24 +131,37 @@ export default function DocumentsPage() {
   function exportCSV() {
     if (!documentos || documentos.length === 0) return;
 
-    const headers = ["id", "nis", "cliente", "tipo_notificacion", "fecha_carta", "estado", "nombre_archivo"];
-    const rows = documentos.map((d) => ([
+    const headers = [
+      "id",
+      "nis",
+      "cliente",
+      "tipo_notificacion",
+      "fecha_carta",
+      "estado",
+      "nombre_archivo",
+    ];
+
+    const rows = documentos.map((d) => [
       d.id ?? "",
       d.nis ?? "",
       d.cliente ?? "",
       d.tipo_notificacion ?? "",
       d.fecha_carta ?? "",
-      d.estado ?? "",
+      labelEstado(mapEstadoUI(d.estado)) ?? "",
       d.nombre_archivo ?? "",
-    ]));
+    ]);
 
-    const csv = [headers.join(","), ...rows.map(r => r.map(csvEscape).join(","))].join("\n");
+    const csv = [
+      headers.join(","),
+      ...rows.map((r) => r.map(csvEscape).join(",")),
+    ].join("\n");
+
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = `documentos_${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `documentos_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -160,7 +176,10 @@ export default function DocumentsPage() {
       <div className="docs-header">
         <div>
           <h1>Buscar y Filtrar Cartas</h1>
-          <p>Utiliza la barra de búsqueda y los filtros para ubicar rápidamente los documentos.</p>
+          <p>
+            Utiliza la barra de búsqueda y los filtros para ubicar rápidamente
+            los documentos.
+          </p>
         </div>
 
         <div className="docs-header-actions">
@@ -178,7 +197,11 @@ export default function DocumentsPage() {
             onClick={exportCSV}
             type="button"
             disabled={documentos.length === 0}
-            title={documentos.length === 0 ? "No hay resultados para exportar" : "Exportar CSV"}
+            title={
+              documentos.length === 0
+                ? "No hay resultados para exportar"
+                : "Exportar CSV"
+            }
           >
             <Download size={16} />
             Exportar CSV
@@ -230,7 +253,9 @@ export default function DocumentsPage() {
               <label>Cliente</label>
               <input
                 value={form.cliente}
-                onChange={(e) => applyFilterInstant("cliente", e.target.value)}
+                onChange={(e) =>
+                  applyFilterInstant("cliente", e.target.value)
+                }
                 placeholder="Nombre del cliente"
               />
             </div>
@@ -263,7 +288,9 @@ export default function DocumentsPage() {
               <input
                 type="date"
                 value={form.fecha_inicio}
-                onChange={(e) => applyFilterInstant("fecha_inicio", e.target.value)}
+                onChange={(e) =>
+                  applyFilterInstant("fecha_inicio", e.target.value)
+                }
               />
             </div>
 
@@ -272,14 +299,20 @@ export default function DocumentsPage() {
               <input
                 type="date"
                 value={form.fecha_fin}
-                onChange={(e) => applyFilterInstant("fecha_fin", e.target.value)}
+                onChange={(e) =>
+                  applyFilterInstant("fecha_fin", e.target.value)
+                }
               />
             </div>
           </div>
 
           <div className="filters-footer">
             {hasActiveFilters && (
-              <button className="btn-danger-soft" type="button" onClick={clearFilters}>
+              <button
+                className="btn-danger-soft"
+                type="button"
+                onClick={clearFilters}
+              >
                 <X size={16} />
                 Limpiar filtros
               </button>
@@ -294,7 +327,9 @@ export default function DocumentsPage() {
         <div className="docs-results-head">
           <span className="results-title">Resultados</span>
           <span className="results-meta">
-            {loading ? "Cargando..." : `${total} resultado${total !== 1 ? "s" : ""}`}
+            {loading
+              ? "Cargando..."
+              : `${total} resultado${total !== 1 ? "s" : ""}`}
           </span>
         </div>
 
@@ -324,22 +359,33 @@ export default function DocumentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {documentos.map((doc) => (
-                  <tr key={doc.id}>
-                    <td className="mono">{doc.nis || "—"}</td>
-                    <td>{doc.cliente || "Sin asignar"}</td>
-                    <td>{doc.tipo_notificacion || "—"}</td>
-                    <td className="mono">{doc.fecha_carta ? formatDate(doc.fecha_carta) : "—"}</td>
-                    <td>
-                      <span className={`badge st-${doc.estado}`}>{doc.estado}</span>
-                    </td>
-                    <td className="col-actions">
-                      <button className="btn-link" onClick={() => verDetalle(doc.id)} type="button">
-                        <Eye size={15} /> Ver detalle
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {documentos.map((doc) => {
+                  const estadoUI = mapEstadoUI(doc.estado);
+                  return (
+                    <tr key={doc.id}>
+                      <td className="mono">{doc.nis || "—"}</td>
+                      <td>{doc.cliente || "Sin asignar"}</td>
+                      <td>{doc.tipo_notificacion || "—"}</td>
+                      <td className="mono">
+                        {doc.fecha_carta ? formatDate(doc.fecha_carta) : "—"}
+                      </td>
+                      <td>
+                        <span className={`badge st-${estadoUI}`}>
+                          {labelEstado(estadoUI)}
+                        </span>
+                      </td>
+                      <td className="col-actions">
+                        <button
+                          className="btn-link"
+                          onClick={() => verDetalle(doc.id)}
+                          type="button"
+                        >
+                          <Eye size={15} /> Ver detalle
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
@@ -389,6 +435,24 @@ function formatDate(dateStr) {
     month: "2-digit",
     year: "numeric",
   });
+}
+
+// BD -> UI
+function mapEstadoUI(estado) {
+  if (estado === "procesando") return "en_revision";
+  if (estado === "validado") return "archivado";
+  return estado || "";
+}
+
+function labelEstado(estadoUI) {
+  const labels = {
+    pendiente: "Pendiente",
+    en_revision: "En revisión",
+    procesado: "Procesado",
+    archivado: "Archivado",
+    error: "Error",
+  };
+  return labels[estadoUI] || estadoUI;
 }
 
 function csvEscape(value) {
