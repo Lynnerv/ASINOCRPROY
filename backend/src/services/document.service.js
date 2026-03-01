@@ -5,10 +5,9 @@
  *   1. Operador sube 1-2 cartas
  *   2. Se crea 1 EXPEDIENTE nuevo (estado: pendiente)
  *   3. Se crean N registros en documentos, todos con ese expediente_id
- *   4. OCR+Gemini procesa después → extrae datos y vincula cliente
+ *   4. OCR+IA procesa después → extrae datos y vincula cliente
  *
  * Modelo:  clientes → expedientes → documentos
- *          (1 carga = 1 expediente = 1-2 cartas de un mismo servicio)
  */
 
 const { query } = require("../config/database");
@@ -79,10 +78,10 @@ async function listDocuments({
   nis = null,
   cliente = null,
   tipo = null,
-  fecha_inicio = null,  // soporta snake_case desde frontend
-  fecha_fin = null,     // soporta snake_case desde frontend
-  fechaInicio = null,   // soporta camelCase por compatibilidad
-  fechaFin = null,      // soporta camelCase por compatibilidad
+  fecha_inicio = null, // snake_case
+  fecha_fin = null, // snake_case
+  fechaInicio = null, // camelCase compat
+  fechaFin = null, // camelCase compat
 }) {
   const offset = (page - 1) * limit;
   const conditions = [];
@@ -99,6 +98,7 @@ async function listDocuments({
       archivado: ["validado"],
       pendiente: ["pendiente"],
       procesado: ["procesado"],
+      // si te llega "error" no lo mapeamos
     };
 
     const estadosDB = estadoMap[estado] || [estado];
@@ -179,6 +179,7 @@ async function listDocuments({
         d.tipo_notificacion,
         d.fecha_carta,
         d.estado,
+        d.tipo_archivo,
         c.nis,
         c.nombre AS cliente
      FROM documentos d
@@ -201,6 +202,7 @@ async function listDocuments({
 
 /**
  * Obtiene un documento por ID con cliente y parámetros VMA.
+ * HU-09: agrega archivo_url y ocr_fields (correcto/a_validar)
  */
 async function getDocumentById(id) {
   const docResult = await query(
@@ -229,7 +231,61 @@ async function getDocumentById(id) {
   );
 
   doc.parametros_vma = paramsResult.rows;
+
+  // HU-09: url para blob/descarga
+  doc.archivo_url = `/api/documentos/${id}/archivo`;
+
+  // HU-09: campos OCR + status (simple)
+  const campos = [
+    { key: "nis", label: "NIS", value: doc.nis },
+    { key: "cliente", label: "Cliente", value: doc.cliente },
+    { key: "tipo_notificacion", label: "Tipo", value: doc.tipo_notificacion },
+    { key: "fecha_carta", label: "Fecha", value: doc.fecha_carta },
+    { key: "estado", label: "Estado", value: doc.estado },
+    { key: "numero_carta", label: "Nº Carta", value: doc.numero_carta },
+    { key: "numero_acta", label: "Nº Acta", value: doc.numero_acta },
+    { key: "fecha_muestra", label: "Fecha muestra", value: doc.fecha_muestra },
+    { key: "numero_informe", label: "Nº Informe", value: doc.numero_informe },
+  ];
+
+  doc.ocr_fields = campos.map((f) => ({
+    ...f,
+    status: f.value == null || String(f.value).trim() === "" ? "a_validar" : "correcto",
+  }));
+
   return doc;
 }
 
-module.exports = { registerUploadedFiles, listDocuments, getDocumentById };
+/**
+ * Devuelve info mínima para servir el archivo original (ruta_archivo + nombre)
+ */
+async function getDocumentFileInfo(id) {
+  const result = await query(
+    `SELECT id, ruta_archivo, nombre_archivo, tipo_archivo
+     FROM documentos
+     WHERE id = $1`,
+    [id]
+  );
+
+  if (result.rows.length === 0) {
+    throw Object.assign(new Error("Documento no encontrado"), { status: 404 });
+  }
+
+  return result.rows[0];
+}
+
+/**
+ * (Opcional HU-09) historial/auditoría simple
+ * Si no tienes tabla historial, devuelve vacío para no romper
+ */
+async function getDocumentHistory(_id) {
+  return { historial: [] };
+}
+
+module.exports = {
+  registerUploadedFiles,
+  listDocuments,
+  getDocumentById,
+  getDocumentFileInfo,
+  getDocumentHistory,
+};

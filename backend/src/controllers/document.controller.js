@@ -2,21 +2,22 @@
  * Controlador de documentos.
  *
  * Endpoints:
- *   POST /api/documentos/cargar  → Subir cartas (HU-04)
- *   GET  /api/documentos         → Listar documentos
- *   GET  /api/documentos/:id     → Detalle de un documento
+ *   POST /api/documentos/cargar        → Subir (HU-04)
+ *   GET  /api/documentos              → Listar (HU-08)
+ *   GET  /api/documentos/:id           → Detalle (HU-09)
+ *   GET  /api/documentos/:id/archivo   → Blob/Descarga (HU-09)
  */
 
 const documentService = require("../services/document.service");
 const { MAX_FILE_SIZE } = require("../config/upload");
+const path = require("path");
+const fs = require("fs");
 
 /**
  * POST /api/documentos/cargar
- * Multipart form-data: campo "cartas" con uno o varios archivos.
  */
 async function uploadFiles(req, res, next) {
   try {
-    // Multer ya procesó los archivos; si hubo error de Multer, viene por middleware
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({
         error: "No se recibieron archivos. Seleccione al menos una carta.",
@@ -49,9 +50,9 @@ async function uploadFiles(req, res, next) {
  * Query params:
  *  - page, limit
  *  - estado
- *  - buscar (texto libre)
+ *  - buscar
  *  - nis, cliente, tipo
- *  - fecha_inicio, fecha_fin (YYYY-MM-DD)
+ *  - fecha_inicio, fecha_fin
  */
 async function listDocuments(req, res, next) {
   try {
@@ -76,8 +77,8 @@ async function listDocuments(req, res, next) {
       nis,
       cliente,
       tipo,
-      fechaInicio,
-      fechaFin,
+      fecha_inicio: fechaInicio,
+      fecha_fin: fechaFin,
     });
 
     res.json(data);
@@ -85,14 +86,13 @@ async function listDocuments(req, res, next) {
     next(err);
   }
 }
+
 /**
  * GET /api/documentos/:id
  */
 async function getDocument(req, res, next) {
   try {
-    const doc = await documentService.getDocumentById(
-      parseInt(req.params.id)
-    );
+    const doc = await documentService.getDocumentById(parseInt(req.params.id));
     res.json({ documento: doc });
   } catch (err) {
     next(err);
@@ -100,8 +100,40 @@ async function getDocument(req, res, next) {
 }
 
 /**
- * Middleware para manejar errores específicos de Multer.
- * Se coloca después del upload middleware en la ruta.
+ * GET /api/documentos/:id/archivo
+ * - Si ?download=1 => fuerza descarga (nombre estandarizado)
+ * - Si no => sendFile (preview)
+ */
+async function getDocumentFile(req, res, next) {
+  try {
+    const id = parseInt(req.params.id);
+    const info = await documentService.getDocumentFileInfo(id);
+
+    const absolutePath = path.resolve(process.cwd(), info.ruta_archivo);
+
+    if (!fs.existsSync(absolutePath)) {
+      return res.status(404).json({ error: "Archivo no encontrado en el servidor" });
+    }
+
+    const ext =
+      (info.tipo_archivo ||
+        path.extname(info.nombre_archivo || "").replace(".", "") ||
+        "bin").toLowerCase();
+
+    const downloadName = `documento_${id}.${ext}`;
+    const download = String(req.query.download || "") === "1";
+
+    if (download) {
+      return res.download(absolutePath, downloadName);
+    }
+    return res.sendFile(absolutePath);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Middleware para manejar errores de Multer.
  */
 function handleMulterError(err, _req, res, next) {
   if (err.code === "LIMIT_FILE_SIZE") {
@@ -120,4 +152,10 @@ function handleMulterError(err, _req, res, next) {
   next(err);
 }
 
-module.exports = { uploadFiles, listDocuments, getDocument, handleMulterError };
+module.exports = {
+  uploadFiles,
+  listDocuments,
+  getDocument,
+  getDocumentFile,
+  handleMulterError,
+};

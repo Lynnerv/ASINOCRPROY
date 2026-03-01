@@ -1,9 +1,10 @@
 /**
  * Rutas de documentos.
  *
- * POST /api/documentos/cargar   → Subir cartas (HU-04)
- * GET  /api/documentos          → Listar documentos
- * GET  /api/documentos/:id      → Detalle de un documento
+ * POST /api/documentos/cargar       → Subir (HU-04)
+ * GET  /api/documentos             → Listar (HU-08)
+ * GET  /api/documentos/:id/archivo  → Blob/Descarga (HU-09)
+ * GET  /api/documentos/:id          → Detalle (HU-09)
  */
 
 const { Router } = require("express");
@@ -14,10 +15,10 @@ const { upload } = require("../config/upload");
 
 const router = Router();
 
-// Todas las rutas requieren autenticación
+// Todas requieren auth
 router.use(auth);
 
-// --- Subir cartas (HU-04) ---
+// HU-04
 router.post(
   "/cargar",
   upload.array("cartas", 20),
@@ -25,10 +26,13 @@ router.post(
   documentController.uploadFiles
 );
 
-// --- Listar documentos ---
+// HU-08
 router.get("/", documentController.listDocuments);
 
-// --- Detalle de un documento ---
+// HU-09 (archivo)
+router.get("/:id/archivo", documentController.getDocumentFile);
+
+// HU-09 (detalle)
 router.get("/:id", documentController.getDocument);
 
 module.exports = router;

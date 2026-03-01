@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { documentApi } from "../api/documents";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   X,
@@ -12,8 +13,7 @@ import {
 } from "lucide-react";
 import "../styles/documents.css";
 
-// Estados que quieres mostrar (UI)
-const ESTADOS = [
+const ESTADOS_UI = [
   { value: "", label: "Todos" },
   { value: "pendiente", label: "Pendiente" },
   { value: "en_revision", label: "En revisión" },
@@ -22,6 +22,8 @@ const ESTADOS = [
 ];
 
 export default function DocumentsPage() {
+  const navigate = useNavigate();
+
   // Inputs (form)
   const [form, setForm] = useState({
     buscar: "",
@@ -33,16 +35,8 @@ export default function DocumentsPage() {
     fecha_fin: "",
   });
 
-  // Query aplicado (lo que realmente consulta)
-  const [query, setQuery] = useState({
-    buscar: "",
-    nis: "",
-    cliente: "",
-    tipo: "",
-    estado: "",
-    fecha_inicio: "",
-    fecha_fin: "",
-  });
+  // Query aplicado
+  const [query, setQuery] = useState({ ...form });
 
   // UI
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -55,10 +49,7 @@ export default function DocumentsPage() {
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [total, setTotal] = useState(0);
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(total / limit)),
-    [total, limit]
-  );
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
 
   async function load() {
     setLoading(true);
@@ -68,7 +59,6 @@ export default function DocumentsPage() {
         limit,
         ...removeEmpty(query),
       };
-
       const res = await documentApi.list(params);
       setDocumentos(res.data.documentos || []);
       setTotal(res.data.total || 0);
@@ -81,7 +71,6 @@ export default function DocumentsPage() {
     }
   }
 
-  // Recarga cuando cambian page o query aplicado
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,7 +86,6 @@ export default function DocumentsPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  // Cuando cambias filtros avanzados, refresca manteniendo búsqueda (criterio HU-08)
   function applyFilterInstant(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
     setPage(1);
@@ -119,13 +107,8 @@ export default function DocumentsPage() {
     setPage(1);
   }
 
-  async function verDetalle(id) {
-    try {
-      const res = await documentApi.getById(id);
-      alert(JSON.stringify(res.data.documento, null, 2));
-    } catch (err) {
-      console.error("Error detalle:", err);
-    }
+  function verDetalle(id) {
+    navigate(`/documentos/${id}`);
   }
 
   function exportCSV() {
@@ -147,15 +130,11 @@ export default function DocumentsPage() {
       d.cliente ?? "",
       d.tipo_notificacion ?? "",
       d.fecha_carta ?? "",
-      labelEstado(mapEstadoUI(d.estado)) ?? "",
+      mapEstado(d.estado),
       d.nombre_archivo ?? "",
     ]);
 
-    const csv = [
-      headers.join(","),
-      ...rows.map((r) => r.map(csvEscape).join(",")),
-    ].join("\n");
-
+    const csv = [headers.join(","), ...rows.map((r) => r.map(csvEscape).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
 
@@ -176,10 +155,7 @@ export default function DocumentsPage() {
       <div className="docs-header">
         <div>
           <h1>Buscar y Filtrar Cartas</h1>
-          <p>
-            Utiliza la barra de búsqueda y los filtros para ubicar rápidamente
-            los documentos.
-          </p>
+          <p>Utiliza la barra de búsqueda y los filtros para ubicar rápidamente los documentos.</p>
         </div>
 
         <div className="docs-header-actions">
@@ -197,11 +173,7 @@ export default function DocumentsPage() {
             onClick={exportCSV}
             type="button"
             disabled={documentos.length === 0}
-            title={
-              documentos.length === 0
-                ? "No hay resultados para exportar"
-                : "Exportar CSV"
-            }
+            title={documentos.length === 0 ? "No hay resultados para exportar" : "Exportar CSV"}
           >
             <Download size={16} />
             Exportar CSV
@@ -253,9 +225,7 @@ export default function DocumentsPage() {
               <label>Cliente</label>
               <input
                 value={form.cliente}
-                onChange={(e) =>
-                  applyFilterInstant("cliente", e.target.value)
-                }
+                onChange={(e) => applyFilterInstant("cliente", e.target.value)}
                 placeholder="Nombre del cliente"
               />
             </div>
@@ -275,7 +245,7 @@ export default function DocumentsPage() {
                 value={form.estado}
                 onChange={(e) => applyFilterInstant("estado", e.target.value)}
               >
-                {ESTADOS.map((s) => (
+                {ESTADOS_UI.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
                   </option>
@@ -288,9 +258,7 @@ export default function DocumentsPage() {
               <input
                 type="date"
                 value={form.fecha_inicio}
-                onChange={(e) =>
-                  applyFilterInstant("fecha_inicio", e.target.value)
-                }
+                onChange={(e) => applyFilterInstant("fecha_inicio", e.target.value)}
               />
             </div>
 
@@ -299,20 +267,14 @@ export default function DocumentsPage() {
               <input
                 type="date"
                 value={form.fecha_fin}
-                onChange={(e) =>
-                  applyFilterInstant("fecha_fin", e.target.value)
-                }
+                onChange={(e) => applyFilterInstant("fecha_fin", e.target.value)}
               />
             </div>
           </div>
 
           <div className="filters-footer">
             {hasActiveFilters && (
-              <button
-                className="btn-danger-soft"
-                type="button"
-                onClick={clearFilters}
-              >
+              <button className="btn-danger-soft" type="button" onClick={clearFilters}>
                 <X size={16} />
                 Limpiar filtros
               </button>
@@ -327,9 +289,7 @@ export default function DocumentsPage() {
         <div className="docs-results-head">
           <span className="results-title">Resultados</span>
           <span className="results-meta">
-            {loading
-              ? "Cargando..."
-              : `${total} resultado${total !== 1 ? "s" : ""}`}
+            {loading ? "Cargando..." : `${total} resultado${total !== 1 ? "s" : ""}`}
           </span>
         </div>
 
@@ -359,33 +319,24 @@ export default function DocumentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {documentos.map((doc) => {
-                  const estadoUI = mapEstadoUI(doc.estado);
-                  return (
-                    <tr key={doc.id}>
-                      <td className="mono">{doc.nis || "—"}</td>
-                      <td>{doc.cliente || "Sin asignar"}</td>
-                      <td>{doc.tipo_notificacion || "—"}</td>
-                      <td className="mono">
-                        {doc.fecha_carta ? formatDate(doc.fecha_carta) : "—"}
-                      </td>
-                      <td>
-                        <span className={`badge st-${estadoUI}`}>
-                          {labelEstado(estadoUI)}
-                        </span>
-                      </td>
-                      <td className="col-actions">
-                        <button
-                          className="btn-link"
-                          onClick={() => verDetalle(doc.id)}
-                          type="button"
-                        >
-                          <Eye size={15} /> Ver detalle
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {documentos.map((doc) => (
+                  <tr key={doc.id}>
+                    <td className="mono">{doc.nis || "—"}</td>
+                    <td>{doc.cliente || "Sin asignar"}</td>
+                    <td>{doc.tipo_notificacion || "—"}</td>
+                    <td className="mono">{doc.fecha_carta ? formatDate(doc.fecha_carta) : "—"}</td>
+                    <td>
+                      <span className={`badge ${estadoClass(doc.estado)}`}>
+                        {mapEstado(doc.estado)}
+                      </span>
+                    </td>
+                    <td className="col-actions">
+                      <button className="btn-link" onClick={() => verDetalle(doc.id)} type="button">
+                        <Eye size={15} /> Ver detalle
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
 
@@ -437,28 +388,31 @@ function formatDate(dateStr) {
   });
 }
 
-// BD -> UI
-function mapEstadoUI(estado) {
-  if (estado === "procesando") return "en_revision";
-  if (estado === "validado") return "archivado";
-  return estado || "";
-}
-
-function labelEstado(estadoUI) {
-  const labels = {
-    pendiente: "Pendiente",
-    en_revision: "En revisión",
-    procesado: "Procesado",
-    archivado: "Archivado",
-    error: "Error",
-  };
-  return labels[estadoUI] || estadoUI;
-}
-
 function csvEscape(value) {
   const s = String(value ?? "");
   if (s.includes(",") || s.includes('"') || s.includes("\n")) {
     return `"${s.replace(/"/g, '""')}"`;
   }
   return s;
+}
+
+// Mapea estado BD -> estado UI
+function mapEstado(estado) {
+  const e = String(estado || "").toLowerCase();
+  if (e === "pendiente") return "Pendiente";
+  if (e === "procesando") return "En revisión";
+  if (e === "procesado") return "Procesado";
+  if (e === "validado") return "Archivado";
+  if (e === "error") return "Error";
+  return estado || "—";
+}
+
+function estadoClass(estado) {
+  const e = String(estado || "").toLowerCase();
+  if (e === "pendiente") return "st-pendiente";
+  if (e === "procesando") return "st-en_revision";
+  if (e === "procesado") return "st-procesado";
+  if (e === "validado") return "st-archivado";
+  if (e === "error") return "st-error";
+  return "st-pendiente";
 }

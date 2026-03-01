@@ -1,12 +1,3 @@
-/**
- * Componente raíz de la aplicación.
- *
- * Configura:
- * - AuthProvider (contexto global de autenticación)
- * - React Router (rutas de la aplicación)
- * - Layout persistente (header + footer) para rutas protegidas
- */
-
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -19,19 +10,22 @@ import UploadPage from "./pages/Upload";
 import ProcessPage from "./pages/Process";
 import ExpedientesPage from "./pages/ExpedientesProcessed";
 import UsersPage from "./pages/Users";
+
+// HU-08 y HU-09
 import DocumentsPage from "./pages/Documents";
+import DocumentDetail from "./pages/DocumentDetail";
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Ruta pública (sin Layout) */}
+          {/* Ruta pública */}
           <Route path="/login" element={<Login />} />
           <Route path="/recuperar" element={<ForgotPassword />} />
           <Route path="/restablecer/:token" element={<ResetPassword />} />
 
-          {/* Rutas protegidas (con Layout: header + footer) */}
+          {/* Protegidas */}
           <Route
             path="/"
             element={
@@ -42,6 +36,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/cargar"
             element={
@@ -52,6 +47,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/procesar"
             element={
@@ -62,6 +58,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/expedientes"
             element={
@@ -72,17 +69,31 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* HU-08: listado */}
           <Route
-              path="/documentos"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <DocumentsPage />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-          
+            path="/documentos"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DocumentsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* HU-09: detalle */}
+          <Route
+            path="/documentos/:id"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DocumentDetail />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
           {/* Solo administrador */}
           <Route
             path="/usuarios"
@@ -95,7 +106,6 @@ export default function App() {
             }
           />
 
-          {/* Redirigir rutas desconocidas */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
