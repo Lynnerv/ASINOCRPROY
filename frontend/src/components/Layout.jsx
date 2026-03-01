@@ -24,6 +24,7 @@ function getNavItems(rol) {
     { to: "/", label: "Inicio" },
     { to: "/cargar", label: "Cargar Cartas" },
     { to: "/procesar", label: "Procesar" },
+    { to: "/documentos", label: "Documentos" }, // 👈 
     { to: "/expedientes", label: "Expedientes" },
     { to: "/reportes", label: "Reportes", disabled: true },
   ];

@@ -46,21 +46,45 @@ async function uploadFiles(req, res, next) {
 
 /**
  * GET /api/documentos
- * Query params: page, limit, estado
+ * Query params:
+ *  - page, limit
+ *  - estado
+ *  - buscar (texto libre)
+ *  - nis, cliente, tipo
+ *  - fecha_inicio, fecha_fin (YYYY-MM-DD)
  */
 async function listDocuments(req, res, next) {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
-    const estado = req.query.estado || null;
+    const limit = parseInt(req.query.limit) || 10;
 
-    const data = await documentService.listDocuments({ page, limit, estado });
+    const estado = req.query.estado || null;
+    const buscar = req.query.buscar || null;
+
+    const nis = req.query.nis || null;
+    const cliente = req.query.cliente || null;
+    const tipo = req.query.tipo || null;
+
+    const fechaInicio = req.query.fecha_inicio || null;
+    const fechaFin = req.query.fecha_fin || null;
+
+    const data = await documentService.listDocuments({
+      page,
+      limit,
+      estado,
+      buscar,
+      nis,
+      cliente,
+      tipo,
+      fechaInicio,
+      fechaFin,
+    });
+
     res.json(data);
   } catch (err) {
     next(err);
   }
 }
-
 /**
  * GET /api/documentos/:id
  */

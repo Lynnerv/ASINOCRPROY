@@ -61,37 +61,104 @@ async function registerUploadedFiles(files, userId) {
 }
 
 /**
- * Lista documentos con paginación.
- * JOIN: documentos → expedientes → clientes
+ * Lista documentos con paginación + filtros HU-08
+ * Filtros: estado, buscar, nis, cliente, tipo (tipo_notificacion), rango de fechas (fecha_carta)
+ * Orden: fecha desc por defecto
  */
-async function listDocuments({ page = 1, limit = 20, estado = null }) {
+async function listDocuments({
+  page = 1,
+  limit = 10,
+  estado = null,
+  buscar = null,
+  nis = null,
+  cliente = null,
+  tipo = null,
+  fechaInicio = null,
+  fechaFin = null,
+}) {
   const offset = (page - 1) * limit;
-  let whereClause = "";
+  const conditions = [];
   const params = [];
 
+  // estado
   if (estado) {
     params.push(estado);
-    whereClause = `WHERE d.estado = $${params.length}`;
+    conditions.push(`d.estado = $${params.length}`);
   }
 
+  // nis
+  if (nis) {
+    params.push(`%${nis}%`);
+    conditions.push(`c.nis ILIKE $${params.length}`);
+  }
+
+  // cliente
+  if (cliente) {
+    params.push(`%${cliente}%`);
+    conditions.push(`c.nombre ILIKE $${params.length}`);
+  }
+
+  // tipo (tipo_notificacion)
+  if (tipo) {
+    params.push(`%${tipo}%`);
+    conditions.push(`d.tipo_notificacion ILIKE $${params.length}`);
+  }
+
+  // buscar (texto libre sobre NIS, cliente, numero_carta, nombre_archivo, tipo)
+  if (buscar) {
+    params.push(`%${buscar}%`);
+    const idx = params.length;
+    conditions.push(`(
+      c.nis ILIKE $${idx}
+      OR c.nombre ILIKE $${idx}
+      OR d.numero_carta ILIKE $${idx}
+      OR d.nombre_archivo ILIKE $${idx}
+      OR d.tipo_notificacion ILIKE $${idx}
+    )`);
+  }
+
+  // rango fechas (fecha_carta)
+  if (fechaInicio) {
+    params.push(fechaInicio);
+    conditions.push(`d.fecha_carta >= $${params.length}`);
+  }
+  if (fechaFin) {
+    params.push(fechaFin);
+    conditions.push(`d.fecha_carta <= $${params.length}`);
+  }
+
+  const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  // count
   const countResult = await query(
-    `SELECT COUNT(*) FROM documentos d ${whereClause}`,
+    `SELECT COUNT(*)::int AS total
+     FROM documentos d
+     JOIN expedientes e ON d.expediente_id = e.id
+     LEFT JOIN clientes c ON e.cliente_id = c.id
+     ${whereClause}`,
     params
   );
-  const total = parseInt(countResult.rows[0].count);
+  const total = countResult.rows[0].total;
 
+  // data
   params.push(limit, offset);
   const docsResult = await query(
-    `SELECT d.id, d.expediente_id, d.nombre_archivo, d.tipo_archivo,
-            d.tamano_bytes, d.numero_carta, d.fecha_carta, d.anexo,
-            d.estado, d.confianza_ocr, d.creado_en,
-            c.nis, c.nombre AS cliente, c.direccion, c.distrito
+    `SELECT
+        d.id,
+        d.nombre_archivo,
+        d.numero_carta,
+        d.tipo_notificacion,
+        d.fecha_carta,
+        d.estado,
+        c.nis,
+        c.nombre AS cliente
      FROM documentos d
      JOIN expedientes e ON d.expediente_id = e.id
      LEFT JOIN clientes c ON e.cliente_id = c.id
      ${whereClause}
-     ORDER BY d.creado_en DESC
-     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+     ORDER BY d.fecha_carta DESC NULLS LAST, d.creado_en DESC
+     LIMIT $${params.length - 1}
+     OFFSET $${params.length}`,
     params
   );
 
@@ -99,7 +166,7 @@ async function listDocuments({ page = 1, limit = 20, estado = null }) {
     documentos: docsResult.rows,
     total,
     page,
-    totalPages: Math.ceil(total / limit),
+    totalPages: Math.max(1, Math.ceil(total / limit)),
   };
 }
 

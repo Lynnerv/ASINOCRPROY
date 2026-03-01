@@ -19,6 +19,7 @@ import UploadPage from "./pages/Upload";
 import ProcessPage from "./pages/Process";
 import ExpedientesPage from "./pages/ExpedientesProcessed";
 import UsersPage from "./pages/Users";
+import DocumentsPage from "./pages/Documents";
 
 export default function App() {
   return (
@@ -71,7 +72,17 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-
+          <Route
+              path="/documentos"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <DocumentsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+          
           {/* Solo administrador */}
           <Route
             path="/usuarios"
