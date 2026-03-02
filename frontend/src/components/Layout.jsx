@@ -11,6 +11,7 @@
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { LogOut, User } from "lucide-react";
+import Bell from "./Bell"; // ✅ HU10
 import "../styles/layout.css";
 
 /**
@@ -24,7 +25,7 @@ function getNavItems(rol) {
     { to: "/", label: "Inicio" },
     { to: "/cargar", label: "Cargar Cartas" },
     { to: "/procesar", label: "Procesar" },
-    { to: "/documentos", label: "Documentos" }, // 👈 
+    { to: "/documentos", label: "Documentos" },
     { to: "/expedientes", label: "Expedientes" },
     { to: "/reportes", label: "Reportes", disabled: true },
   ];
@@ -86,6 +87,9 @@ export default function Layout({ children }) {
           </div>
 
           <div className="header-right">
+            {/* ✅ HU10: Bell con contador */}
+            <Bell />
+
             <div className="header-user">
               <div className="user-avatar">
                 <User size={14} />
@@ -95,7 +99,13 @@ export default function Layout({ children }) {
                 <span className="user-role">{usuario?.rol}</span>
               </div>
             </div>
-            <button className="logout-btn" onClick={handleLogout} title="Cerrar sesión">
+
+            <button
+              className="logout-btn"
+              onClick={handleLogout}
+              title="Cerrar sesión"
+              type="button"
+            >
               <LogOut size={15} />
             </button>
           </div>
