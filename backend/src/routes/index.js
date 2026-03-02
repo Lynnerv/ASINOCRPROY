@@ -12,6 +12,7 @@ const processRoutes = require("./process.routes");
 const expedienteRoutes = require("./expediente.routes");
 const statsRoutes = require("./stats.routes");
 const usersRoutes = require("./users.routes");
+const notificationsRoutes = require("./notifications.routes"); // ✅ NUEVO
 
 function registerRoutes(app) {
   app.use("/api/auth", authRoutes);
@@ -20,6 +21,7 @@ function registerRoutes(app) {
   app.use("/api/expedientes", expedienteRoutes);
   app.use("/api/stats", statsRoutes);
   app.use("/api/usuarios", usersRoutes);
+  app.use("/api/notificaciones", notificationsRoutes); // ✅ NUEVO
 }
 
 module.exports = registerRoutes;

@@ -12,6 +12,7 @@ const documentService = require("../services/document.service");
 const { MAX_FILE_SIZE } = require("../config/upload");
 const path = require("path");
 const fs = require("fs");
+const { crearNotificacion } = require("../services/notifications.service"); // ✅ HU10
 
 /**
  * POST /api/documentos/cargar
@@ -31,6 +32,21 @@ async function uploadFiles(req, res, next) {
 
     const exitosos = documentos.filter((r) => r.resultado === "registrado").length;
     const errores = documentos.filter((r) => r.resultado === "error").length;
+
+    // ✅ HU10: Notificación de carga
+    try {
+      await crearNotificacion({
+        usuario_id: req.usuario.id,
+        tipo: "CARGA",
+        titulo: "Documentos cargados correctamente",
+        mensaje: `Se subieron ${req.files.length} documento(s). Registrados: ${exitosos}. Errores: ${errores}.`,
+        referencia_tipo: "expediente",
+        referencia_id: expediente_id,
+      });
+    } catch (e) {
+      console.warn("[HU10] No se pudo crear notificación de carga:", e.message);
+      // No romper flujo por notificaciones
+    }
 
     res.status(201).json({
       mensaje: `Carga finalizada con éxito. Se procesaron ${exitosos} cartas.`,

@@ -15,6 +15,9 @@ import UsersPage from "./pages/Users";
 import DocumentsPage from "./pages/Documents";
 import DocumentDetail from "./pages/DocumentDetail";
 
+// HU-10
+import Notifications from "./pages/Notifications";
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -89,6 +92,18 @@ export default function App() {
               <ProtectedRoute>
                 <Layout>
                   <DocumentDetail />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* HU-10: notificaciones */}
+          <Route
+            path="/notificaciones"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Notifications />
                 </Layout>
               </ProtectedRoute>
             }

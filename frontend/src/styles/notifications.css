@@ -1,0 +1,142 @@
+.nt-page {
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.nt-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.nt-title {
+  margin: 0;
+  font-size: 22px;
+}
+
+.nt-sub {
+  margin-top: 4px;
+  opacity: 0.75;
+}
+
+.nt-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nt-btn {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e6e6e6;
+  background: #fff;
+  cursor: pointer;
+}
+
+.nt-btn.primary {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
+.nt-tabs {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nt-tab {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid #e6e6e6;
+  background: #fff;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.nt-tab.active {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.nt-list {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.nt-card {
+  border: 1px solid #ededed;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.nt-card.unread {
+  background: #f3f8ff;
+}
+
+.nt-card.read {
+  background: #fff;
+}
+
+.nt-card-left {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.nt-type {
+  min-width: 90px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid #e6e6e6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  background: #fff;
+  opacity: 0.9;
+}
+
+.nt-main {
+  display: grid;
+  gap: 4px;
+}
+
+.nt-card-title {
+  font-weight: 800;
+}
+
+.nt-dot {
+  color: #2563eb;
+  margin-left: 6px;
+}
+
+.nt-card-msg {
+  opacity: 0.85;
+}
+
+.nt-card-meta {
+  opacity: 0.6;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.nt-card-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nt-read {
+  opacity: 0.6;
+  font-size: 12px;
+}
