@@ -53,11 +53,11 @@ export default function ForgotPassword() {
           <h1>
             Gestión Documental
             <br />
-            con <span className="highlight">Inteligencia Artificial</span>
+            <span className="highlight">Automatizada</span>
           </h1>
           <p>
             Sistema de extracción y validación automatizada de documentos
-            de notificación mediante OCR y procesamiento con IA.
+            de notificación de Valores Máximos Admisibles.
           </p>
         </div>
       </div>

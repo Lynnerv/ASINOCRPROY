@@ -333,7 +333,7 @@ export default function ProcessPage() {
               {/* Process button */}
               <div className="process-bar">
                 <p className="process-bar-info">
-                  Se procesarán <strong>{totalPendingDocs}</strong> documento{totalPendingDocs !== 1 && "s"} en <strong>{expedientes.length}</strong> expediente{expedientes.length !== 1 && "s"} con OCR + Gemini
+                  Se procesarán <strong>{totalPendingDocs}</strong> documento{totalPendingDocs !== 1 && "s"} en <strong>{expedientes.length}</strong> expediente{expedientes.length !== 1 && "s"}
                 </p>
                 <button
                   className="process-btn"

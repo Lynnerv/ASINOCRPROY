@@ -188,6 +188,10 @@ module.exports = {
   createEmptyExpediente,
   deleteDocument,
   moveDocument,
+  // HU-07: Validación
+  updateDocumentFields,
+  validateDocument,
+  markDocumentPending,
 };
 
 /**
@@ -319,4 +323,201 @@ async function getExpedienteDetail(expedienteId) {
 
   expediente.documentos = documentos;
   return expediente;
+}
+
+// ══════════════════════════════════════════
+//  HU-07: Validación de datos extraídos
+// ══════════════════════════════════════════
+
+/**
+ * Actualiza campos de un documento y sus parámetros VMA.
+ * NO cambia el estado del documento (se mantiene como está).
+ *
+ * @param {number} docId - ID del documento
+ * @param {object} fields - Campos de la carta: numero_carta, fecha_carta, etc.
+ * @param {Array} parametros - Array de { resultado_id, resultado_valor }
+ * @param {number} userId - ID del usuario que edita
+ */
+async function updateDocumentFields(docId, fields, parametros, userId) {
+  // Verificar que el documento existe y no está validado
+  const docResult = await query(
+    "SELECT id, estado, expediente_id FROM documentos WHERE id = $1",
+    [docId]
+  );
+  if (docResult.rows.length === 0) {
+    throw Object.assign(new Error("Documento no encontrado"), { status: 404 });
+  }
+  if (docResult.rows[0].estado === "validado") {
+    throw Object.assign(
+      new Error("No se puede editar un documento ya validado. Márquelo como pendiente primero."),
+      { status: 400 }
+    );
+  }
+
+  // Actualizar campos de la carta
+  await query(
+    `UPDATE documentos SET
+       numero_carta = $2,
+       fecha_carta = $3,
+       anexo = $4,
+       numero_acta = $5,
+       fecha_muestra = $6,
+       numero_informe = $7,
+       actualizado_en = NOW()
+     WHERE id = $1`,
+    [
+      docId,
+      fields.numero_carta || null,
+      fields.fecha_carta || null,
+      fields.anexo || null,
+      fields.numero_acta || null,
+      fields.fecha_muestra || null,
+      fields.numero_informe || null,
+    ]
+  );
+
+  // Actualizar valores de parámetros VMA
+  if (parametros && parametros.length > 0) {
+    for (const p of parametros) {
+      if (p.resultado_id) {
+        await query(
+          `UPDATE resultados_parametros 
+           SET resultado_valor = $2
+           WHERE id = $1`,
+          [p.resultado_id, String(p.resultado_valor)]
+        );
+      }
+    }
+  }
+
+  // Registrar en historial
+  await query(
+    `INSERT INTO historial_acciones (usuario_id, accion, entidad, entidad_id, detalle)
+     VALUES ($1, 'editar_documento', 'documentos', $2, $3)`,
+    [userId, docId, JSON.stringify({ campos_editados: Object.keys(fields) })]
+  );
+
+  return { updated: true, documento_id: docId };
+}
+
+/**
+ * Marca un documento como validado.
+ * Verifica que los campos obligatorios estén completos.
+ * Bloquea la edición posterior hasta que se marque como pendiente.
+ *
+ * @param {number} docId - ID del documento
+ * @param {number} userId - ID del usuario que valida
+ */
+async function validateDocument(docId, userId) {
+  // Verificar que el documento existe
+  const docResult = await query(
+    `SELECT id, estado, expediente_id, numero_carta, fecha_carta, anexo, numero_acta
+     FROM documentos WHERE id = $1`,
+    [docId]
+  );
+  if (docResult.rows.length === 0) {
+    throw Object.assign(new Error("Documento no encontrado"), { status: 404 });
+  }
+
+  const doc = docResult.rows[0];
+
+  if (doc.estado === "validado") {
+    throw Object.assign(new Error("El documento ya está validado"), { status: 400 });
+  }
+
+  // Validar campos obligatorios
+  const faltantes = [];
+  if (!doc.numero_carta) faltantes.push("Nº Carta");
+  if (!doc.fecha_carta) faltantes.push("Fecha carta");
+  if (!doc.anexo) faltantes.push("Anexo");
+  if (!doc.numero_acta) faltantes.push("Nº Acta");
+
+  if (faltantes.length > 0) {
+    throw Object.assign(
+      new Error(`Campos obligatorios vacíos: ${faltantes.join(", ")}`),
+      { status: 400 }
+    );
+  }
+
+  // Marcar como validado
+  await query(
+    `UPDATE documentos SET
+       estado = 'validado',
+       validado_por = $2,
+       fecha_validacion = NOW(),
+       actualizado_en = NOW()
+     WHERE id = $1`,
+    [docId, userId]
+  );
+
+  // Verificar si todos los documentos del expediente están validados
+  const allDocs = await query(
+    `SELECT estado FROM documentos WHERE expediente_id = $1`,
+    [doc.expediente_id]
+  );
+  const todosValidados = allDocs.rows.every((d) => d.estado === "validado");
+
+  if (todosValidados) {
+    await query(
+      `UPDATE expedientes SET estado = 'completo', actualizado_en = NOW() WHERE id = $1`,
+      [doc.expediente_id]
+    );
+  }
+
+  // Registrar en historial
+  await query(
+    `INSERT INTO historial_acciones (usuario_id, accion, entidad, entidad_id)
+     VALUES ($1, 'validar_documento', 'documentos', $2)`,
+    [userId, docId]
+  );
+
+  return {
+    validated: true,
+    documento_id: docId,
+    expediente_completo: todosValidados,
+  };
+}
+
+/**
+ * Marca un documento validado como pendiente de revisión.
+ * Desbloquea la edición de los campos.
+ *
+ * @param {number} docId - ID del documento
+ * @param {number} userId - ID del usuario
+ */
+async function markDocumentPending(docId, userId) {
+  const docResult = await query(
+    "SELECT id, estado, expediente_id FROM documentos WHERE id = $1",
+    [docId]
+  );
+  if (docResult.rows.length === 0) {
+    throw Object.assign(new Error("Documento no encontrado"), { status: 404 });
+  }
+
+  // Revertir a procesado
+  await query(
+    `UPDATE documentos SET
+       estado = 'procesado',
+       validado_por = NULL,
+       fecha_validacion = NULL,
+       actualizado_en = NOW()
+     WHERE id = $1`,
+    [docId]
+  );
+
+  // Si el expediente estaba completo, revertir
+  await query(
+    `UPDATE expedientes SET estado = 'en_revision', actualizado_en = NOW()
+     WHERE id = $1 AND estado = 'completo'`,
+    [docResult.rows[0].expediente_id]
+  );
+
+  // Registrar en historial
+  await query(
+    `INSERT INTO historial_acciones (usuario_id, accion, entidad, entidad_id)
+     VALUES ($1, 'revertir_validacion', 'documentos', $2)`,
+    [userId, docId]
+  );
+
+  return { reverted: true, documento_id: docId };
 }

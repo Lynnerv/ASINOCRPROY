@@ -19,7 +19,7 @@
 
 .nt-sub {
   margin-top: 4px;
-  opacity: 0.75;
+  color: var(--color-text-secondary);
 }
 
 .nt-actions {
@@ -31,9 +31,16 @@
 .nt-btn {
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid #e6e6e6;
-  background: #fff;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
   cursor: pointer;
+  transition: all var(--transition);
+}
+
+.nt-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .nt-btn.primary {
@@ -52,15 +59,22 @@
 .nt-tab {
   padding: 8px 12px;
   border-radius: 999px;
-  border: 1px solid #e6e6e6;
-  background: #fff;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
   cursor: pointer;
-  opacity: 0.9;
+  transition: all var(--transition);
+}
+
+.nt-tab:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .nt-tab.active {
   background: #eef2ff;
   border-color: #c7d2fe;
+  color: #4338ca;
 }
 
 .nt-list {
@@ -70,13 +84,14 @@
 }
 
 .nt-card {
-  border: 1px solid #ededed;
+  border: 1px solid var(--color-border);
   border-radius: 14px;
   padding: 14px;
   display: flex;
   justify-content: space-between;
   gap: 12px;
   cursor: pointer;
+  transition: all var(--transition);
 }
 
 .nt-card.unread {
@@ -84,7 +99,11 @@
 }
 
 .nt-card.read {
-  background: #fff;
+  background: var(--color-surface);
+}
+
+.nt-card:hover {
+  border-color: var(--color-primary);
 }
 
 .nt-card-left {
@@ -97,13 +116,13 @@
   min-width: 90px;
   height: 28px;
   border-radius: 999px;
-  border: 1px solid #e6e6e6;
+  border: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  background: #fff;
-  opacity: 0.9;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
 }
 
 .nt-main {
@@ -116,16 +135,16 @@
 }
 
 .nt-dot {
-  color: #2563eb;
+  color: var(--color-primary);
   margin-left: 6px;
 }
 
 .nt-card-msg {
-  opacity: 0.85;
+  color: var(--color-text-secondary);
 }
 
 .nt-card-meta {
-  opacity: 0.6;
+  color: var(--color-text-muted);
   font-size: 12px;
   margin-top: 4px;
 }
@@ -137,6 +156,27 @@
 }
 
 .nt-read {
-  opacity: 0.6;
+  color: var(--color-text-muted);
   font-size: 12px;
+}
+
+/* ═══════════════════════════════
+   DARK MODE — NOTIFICATIONS
+   ═══════════════════════════════ */
+[data-theme="dark"] .nt-btn.primary {
+  background: #6366f1;
+  color: #fff;
+  border-color: #6366f1;
+}
+[data-theme="dark"] .nt-btn.primary:hover {
+  background: #818cf8;
+  border-color: #818cf8;
+}
+[data-theme="dark"] .nt-tab.active {
+  background: rgba(129,140,248,0.12);
+  border-color: rgba(129,140,248,0.3);
+  color: #a5b4fc;
+}
+[data-theme="dark"] .nt-card.unread {
+  background: rgba(99,102,241,0.06);
 }

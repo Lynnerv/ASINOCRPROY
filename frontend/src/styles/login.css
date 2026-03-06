@@ -446,3 +446,23 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ═══════════════════════════════
+   DARK MODE — LOGIN OVERRIDES
+   ═══════════════════════════════ */
+[data-theme="dark"] .login-form-panel {
+  background: var(--color-surface);
+}
+[data-theme="dark"] .login-branding {
+  background: #0b1120;
+}
+[data-theme="dark"] .pw-rule.pw-met { color: #4ade80; }
+[data-theme="dark"] .pw-mismatch { color: #fca5a5; }
+[data-theme="dark"] .login-success {
+  background: rgba(74,222,128,0.08);
+  border-color: #14532d;
+}
+[data-theme="dark"] .login-error,
+[data-theme="dark"] .form-error {
+  color: #fca5a5;
+}

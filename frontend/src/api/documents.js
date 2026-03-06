@@ -1,6 +1,7 @@
 /**
  * Cliente HTTP para endpoints de documentos.
  */
+
 import api from "./auth";
 
 export const documentApi = {
@@ -20,13 +21,6 @@ export const documentApi = {
 
   list: (params) => api.get("/documentos", { params }),
   getById: (id) => api.get(`/documentos/${id}`),
-
-  // HU-09: preview blob + download
-  getFileBlob: (id) =>
-    api.get(`/documentos/${id}/archivo`, { responseType: "blob" }),
-
-  downloadOriginal: (id) =>
-    api.get(`/documentos/${id}/archivo?download=1`, { responseType: "blob" }),
 
   /** Resumen de estados */
   getProcessStatus: () => api.get("/procesar/estado"),
@@ -48,6 +42,7 @@ export const documentApi = {
 };
 
 export const expedienteApi = {
+  // Panel de control
   listPending: () => api.get("/expedientes/pendientes"),
   listAll: () => api.get("/expedientes"),
   create: () => api.post("/expedientes"),
@@ -57,8 +52,17 @@ export const expedienteApi = {
       expediente_destino_id: targetExpId,
     }),
 
+  // HU-06: Ver expedientes procesados
   listProcessed: (params) => api.get("/expedientes/procesados", { params }),
   getDetail: (id) => api.get(`/expedientes/${id}/detalle`),
+
+  // HU-07: Validación de datos
+  updateDocFields: (docId, campos, parametros) =>
+    api.put(`/expedientes/documento/${docId}/campos`, { campos, parametros }),
+  validateDoc: (docId) =>
+    api.patch(`/expedientes/documento/${docId}/validar`),
+  markPending: (docId) =>
+    api.patch(`/expedientes/documento/${docId}/pendiente`),
 };
 
 export const statsApi = {

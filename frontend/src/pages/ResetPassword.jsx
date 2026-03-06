@@ -127,7 +127,7 @@ export default function ResetPassword() {
           <h1>
             Gestión Documental
             <br />
-            con <span className="highlight">Inteligencia Artificial</span>
+            con <span className="highlight">Automatizada</span>
           </h1>
         </div>
       </div>

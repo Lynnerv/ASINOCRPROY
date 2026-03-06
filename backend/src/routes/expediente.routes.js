@@ -11,6 +11,11 @@
  * HU-06 - Ver expedientes procesados:
  *   GET    /api/expedientes/procesados           → Lista paginada con filtros
  *   GET    /api/expedientes/:id/detalle          → Detalle completo (docs + VMA)
+ *
+ * HU-07 - Validación de datos:
+ *   PUT    /api/expedientes/documento/:id/campos    → Guardar correcciones
+ *   PATCH  /api/expedientes/documento/:id/validar   → Validar documento
+ *   PATCH  /api/expedientes/documento/:id/pendiente → Marcar como pendiente
  */
 
 const { Router } = require("express");
@@ -45,6 +50,53 @@ router.get("/:id/detalle", auth, async (req, res, next) => {
       parseInt(req.params.id)
     );
     res.json({ expediente });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── HU-07: Validación de datos ──
+
+// Guardar correcciones de campos y parámetros
+router.put("/documento/:id/campos", auth, async (req, res, next) => {
+  try {
+    const { campos, parametros } = req.body;
+    if (!campos) {
+      return res.status(400).json({ error: "Se requiere el objeto 'campos'" });
+    }
+    const result = await expedienteService.updateDocumentFields(
+      parseInt(req.params.id),
+      campos,
+      parametros || [],
+      req.usuario.id
+    );
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Validar documento (marcar como validado)
+router.patch("/documento/:id/validar", auth, async (req, res, next) => {
+  try {
+    const result = await expedienteService.validateDocument(
+      parseInt(req.params.id),
+      req.usuario.id
+    );
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Marcar documento como pendiente (revertir validación)
+router.patch("/documento/:id/pendiente", auth, async (req, res, next) => {
+  try {
+    const result = await expedienteService.markDocumentPending(
+      parseInt(req.params.id),
+      req.usuario.id
+    );
+    res.json(result);
   } catch (err) {
     next(err);
   }

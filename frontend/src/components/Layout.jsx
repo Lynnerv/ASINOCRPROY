@@ -2,31 +2,30 @@
  * Layout principal de la aplicación.
  *
  * Envuelve todas las páginas protegidas con:
- * - Header fijo con logo, navegación y usuario
+ * - Header fijo con logo, navegación, campana y usuario
+ * - Dark mode toggle
  * - Footer persistente
- *
- * Se renderiza en App.jsx alrededor de las rutas protegidas.
  */
 
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { LogOut, User } from "lucide-react";
-import Bell from "./Bell"; // ✅ HU10
+import { LogOut, User, Moon, Sun } from "lucide-react";
+import Bell from "./Bell";
 import "../styles/layout.css";
 
 /**
  * Navegación según rol:
- *   admin   → Inicio, Cargar, Procesar, Expedientes, Reportes, Usuarios
- *   operador → Inicio, Cargar, Procesar, Expedientes, Reportes
- *   otro    → solo Inicio
+ *   admin   → Inicio, Cargar, Procesar, Expedientes, Documentos, Reportes, Usuarios
+ *   operador → Inicio, Cargar, Procesar, Expedientes, Documentos, Reportes
  */
 function getNavItems(rol) {
   const common = [
     { to: "/", label: "Inicio" },
     { to: "/cargar", label: "Cargar Cartas" },
     { to: "/procesar", label: "Procesar" },
-    { to: "/documentos", label: "Documentos" },
     { to: "/expedientes", label: "Expedientes" },
+    { to: "/documentos", label: "Documentos" },
     { to: "/reportes", label: "Reportes", disabled: true },
   ];
 
@@ -39,11 +38,30 @@ function getNavItems(rol) {
   return [{ to: "/", label: "Inicio" }];
 }
 
+function getInitialTheme() {
+  try {
+    const saved = localStorage.getItem("asin-theme");
+    if (saved === "dark" || saved === "light") return saved;
+  } catch {}
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 export default function Layout({ children }) {
   const { usuario, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const navItems = getNavItems(usuario?.rol);
+
+  const [theme, setTheme] = useState(getInitialTheme);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem("asin-theme", theme); } catch {}
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  }
 
   function handleLogout() {
     logout();
@@ -87,9 +105,11 @@ export default function Layout({ children }) {
           </div>
 
           <div className="header-right">
-            {/* ✅ HU10: Bell con contador */}
+            <button className="theme-toggle" onClick={toggleTheme}
+              title={theme === "dark" ? "Modo claro" : "Modo oscuro"}>
+              {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
             <Bell />
-
             <div className="header-user">
               <div className="user-avatar">
                 <User size={14} />
@@ -99,13 +119,7 @@ export default function Layout({ children }) {
                 <span className="user-role">{usuario?.rol}</span>
               </div>
             </div>
-
-            <button
-              className="logout-btn"
-              onClick={handleLogout}
-              title="Cerrar sesión"
-              type="button"
-            >
+            <button className="logout-btn" onClick={handleLogout} title="Cerrar sesión">
               <LogOut size={15} />
             </button>
           </div>
@@ -124,7 +138,7 @@ export default function Layout({ children }) {
             <img src="/logo.png" alt="Asin Solutions" className="footer-logo" />
             <span>ASIN SOLUTIONS</span>
             <span className="footer-sep">·</span>
-            <span>Sistema de Gestión Documental con IA</span>
+            <span>Sistema de Gestión Documental</span>
           </div>
           <div className="footer-right">
             <span>Asin Solutions © {new Date().getFullYear()}</span>

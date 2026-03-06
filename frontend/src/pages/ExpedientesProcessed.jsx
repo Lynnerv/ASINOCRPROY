@@ -1,16 +1,22 @@
 /**
- * Ver expedientes procesados (HU-06).
+ * Expedientes procesados (HU-06) + Validación de datos (HU-07).
  *
- * Propósito: Verificar que los datos extraídos por OCR sean correctos.
- * Los colores rojo/verde en parámetros son ayuda visual para el operador,
- * NO representan un juicio de cumplimiento (eso ya viene de origen).
+ * VISTA TABLA: Lista de expedientes con filtros y paginación.
+ *
+ * VISTA DETALLE + VALIDACIÓN:
+ *   - Hero: Datos del cliente + resumen de extracción
+ *   - Tabs por Anexo
+ *   - Split: Imagen IZQUIERDA (referencia) | Formulario DERECHA (editable)
+ *   - Botones: Guardar Correcciones, Validar, Marcar como pendiente
+ *   - Campos bloqueados cuando estado = validado
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { expedienteApi } from "../api/documents";
 import {
   Search, X, ChevronLeft, ChevronRight, FileText,
   Loader, Eye, ZoomIn, FolderOpen, Files,
+  Save, CheckCircle, RotateCcw, Lock, AlertCircle,
 } from "lucide-react";
 import "../styles/expedientes.css";
 
@@ -25,7 +31,10 @@ const FILTROS = [
   { value: "pendiente", label: "Pendientes" },
 ];
 
+const CAMPOS_OBLIGATORIOS = ["numero_carta", "fecha_carta", "anexo", "numero_acta"];
+
 export default function ExpedientesPage() {
+  // ── List state ──
   const [expedientes, setExpedientes] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -35,14 +44,59 @@ export default function ExpedientesPage() {
   const [busqueda, setBusqueda] = useState("");
   const [busquedaInput, setBusquedaInput] = useState("");
 
+  // ── Detail state ──
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [activeDocIndex, setActiveDocIndex] = useState(0);
   const [previewImg, setPreviewImg] = useState(null);
 
+  // ── HU-07: Edit state ──
+  const [editForm, setEditForm] = useState({});
+  const [paramEdits, setParamEdits] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+
   const LIMIT = 15;
 
   useEffect(() => { loadExpedientes(); }, [page, filtroEstado, busqueda]);
+
+  // Populate edit form when active document changes
+  useEffect(() => {
+    if (detail) {
+      const doc = (detail.documentos || [])[activeDocIndex];
+      if (doc) {
+        populateForm(doc);
+      }
+    }
+  }, [detail, activeDocIndex]);
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (toast) {
+      const t = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [toast]);
+
+  function populateForm(doc) {
+    setEditForm({
+      numero_carta: doc.numero_carta || "",
+      fecha_carta: doc.fecha_carta ? doc.fecha_carta.split("T")[0] : "",
+      anexo: doc.anexo || "",
+      numero_acta: doc.numero_acta || "",
+      fecha_muestra: doc.fecha_muestra ? doc.fecha_muestra.split("T")[0] : "",
+      numero_informe: doc.numero_informe || "",
+    });
+    // Populate param edits
+    const pe = {};
+    for (const p of (doc.parametros_vma || [])) {
+      pe[p.resultado_id] = p.resultado_valor || "";
+    }
+    setParamEdits(pe);
+    setFieldErrors({});
+  }
 
   async function loadExpedientes() {
     setLoading(true);
@@ -74,7 +128,23 @@ export default function ExpedientesPage() {
     }
   }
 
-  function closeDetail() { setDetail(null); setActiveDocIndex(0); }
+  async function reloadDetail() {
+    if (!detail) return;
+    try {
+      const { data } = await expedienteApi.getDetail(detail.id);
+      setDetail(data.expediente);
+    } catch (err) {
+      console.error("Error recargando detalle:", err);
+    }
+  }
+
+  function closeDetail() {
+    setDetail(null);
+    setActiveDocIndex(0);
+    setToast(null);
+    setFieldErrors({});
+    loadExpedientes(); // Refresh list
+  }
 
   function handleSearch(e) {
     e.preventDefault();
@@ -91,13 +161,6 @@ export default function ExpedientesPage() {
     });
   }
 
-  function formatDateLong(dateStr) {
-    if (!dateStr) return "—";
-    return new Date(dateStr).toLocaleDateString("es-PE", {
-      day: "2-digit", month: "long", year: "numeric",
-    });
-  }
-
   function getEstadoLabel(exp) {
     if (exp.errores > 0) return "error";
     if (exp.validados === exp.num_documentos && exp.num_documentos > 0) return "validado";
@@ -109,13 +172,113 @@ export default function ExpedientesPage() {
     return `${API_BASE}/${doc.ruta_archivo.replace(/\\/g, "/")}`;
   }
 
+  function updateField(field, value) {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  }
+
+  function updateParam(resultadoId, value) {
+    setParamEdits((prev) => ({ ...prev, [resultadoId]: value }));
+  }
+
+  function validateFields() {
+    const errors = {};
+    for (const field of CAMPOS_OBLIGATORIOS) {
+      if (!editForm[field] || String(editForm[field]).trim() === "") {
+        errors[field] = true;
+      }
+    }
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
+  // ── HU-07: Actions ──
+
+  async function handleSave() {
+    if (!validateFields()) {
+      setToast({ type: "error", message: "Verifique los datos obligatorios" });
+      return;
+    }
+    const doc = (detail.documentos || [])[activeDocIndex];
+    if (!doc) return;
+
+    setSaving(true);
+    try {
+      const parametros = Object.entries(paramEdits).map(([resultado_id, resultado_valor]) => ({
+        resultado_id: parseInt(resultado_id),
+        resultado_valor,
+      }));
+      await expedienteApi.updateDocFields(doc.id, editForm, parametros);
+      await reloadDetail();
+      setToast({ type: "success", message: "Correcciones guardadas" });
+    } catch (err) {
+      const msg = err.response?.data?.error || "Error al guardar";
+      setToast({ type: "error", message: msg });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleValidate() {
+    if (!validateFields()) {
+      setToast({ type: "error", message: "Verifique los datos obligatorios" });
+      return;
+    }
+    const doc = (detail.documentos || [])[activeDocIndex];
+    if (!doc) return;
+
+    setValidating(true);
+    try {
+      // Save first, then validate
+      const parametros = Object.entries(paramEdits).map(([resultado_id, resultado_valor]) => ({
+        resultado_id: parseInt(resultado_id),
+        resultado_valor,
+      }));
+      await expedienteApi.updateDocFields(doc.id, editForm, parametros);
+      const { data } = await expedienteApi.validateDoc(doc.id);
+      await reloadDetail();
+      setToast({
+        type: "success",
+        message: data.expediente_completo
+          ? "Registro validado. Todos los documentos del expediente están completos."
+          : "Registro validado con éxito",
+      });
+    } catch (err) {
+      const msg = err.response?.data?.error || "Error al validar";
+      setToast({ type: "error", message: msg });
+    } finally {
+      setValidating(false);
+    }
+  }
+
+  async function handleMarkPending() {
+    const doc = (detail.documentos || [])[activeDocIndex];
+    if (!doc) return;
+
+    try {
+      await expedienteApi.markPending(doc.id);
+      await reloadDetail();
+      setToast({ type: "success", message: "Documento desbloqueado para edición" });
+    } catch (err) {
+      const msg = err.response?.data?.error || "Error al marcar como pendiente";
+      setToast({ type: "error", message: msg });
+    }
+  }
+
   // ══════════════════════════════════════════
-  //  VISTA DETALLE
+  //  VISTA DETALLE + VALIDACIÓN (HU-07)
   // ══════════════════════════════════════════
   if (detail) {
     const docs = detail.documentos || [];
     const activeDoc = docs[activeDocIndex] || null;
     const extraction = getExtractionSummary(docs);
+    const isLocked = activeDoc?.estado === "validado";
 
     return (
       <div className="exp-page exp-page-wide">
@@ -124,7 +287,7 @@ export default function ExpedientesPage() {
           <ChevronLeft size={16} /> Volver a expedientes
         </button>
 
-        {/* ── HERO: Client + Extraction summary ── */}
+        {/* ── HERO ── */}
         <div className="hero-grid">
           <div className="hero-client">
             <div className="hero-client-top">
@@ -159,7 +322,6 @@ export default function ExpedientesPage() {
             </div>
           </div>
 
-          {/* Extraction summary */}
           <div className="hero-extraction">
             <span className="extraction-label">Resumen de extracción</span>
             <div className="extraction-number-row">
@@ -167,8 +329,7 @@ export default function ExpedientesPage() {
               <span className="extraction-text">parámetros extraídos</span>
             </div>
             <div className="extraction-bar">
-              <div
-                className="extraction-bar-fill"
+              <div className="extraction-bar-fill"
                 style={{ width: `${extraction.camposTotales > 0 ? (extraction.camposExtraidos / extraction.camposTotales) * 100 : 0}%` }}
               ></div>
             </div>
@@ -198,8 +359,7 @@ export default function ExpedientesPage() {
               const excCount = (doc.parametros_vma || [])
                 .filter((p) => checkExcede(p.resultado_valor, p.vma_normado)).length;
               return (
-                <button
-                  key={doc.id}
+                <button key={doc.id}
                   className={`det-tab ${i === activeDocIndex ? "active" : ""}`}
                   onClick={() => setActiveDocIndex(i)}
                 >
@@ -207,9 +367,7 @@ export default function ExpedientesPage() {
                   <span className="tab-info">
                     {paramCount > 0 ? `${paramCount} parám.` : "Sin parámetros"}
                   </span>
-                  {excCount > 0 && (
-                    <span className="tab-count red">{excCount}</span>
-                  )}
+                  {excCount > 0 && <span className="tab-count red">{excCount}</span>}
                   <span className={`tab-badge st-${doc.estado}`}>{doc.estado}</span>
                 </button>
               );
@@ -217,12 +375,72 @@ export default function ExpedientesPage() {
           </div>
         )}
 
-        {/* ── SPLIT: Data (left) + Image (right) ── */}
+        {/* ── ACTION BAR (HU-07) ── */}
+        {activeDoc && (
+          <div className={`action-bar ${isLocked ? "locked" : ""}`}>
+            {isLocked ? (
+              <>
+                <div className="action-bar-status">
+                  <Lock size={14} />
+                  <span>Documento validado — edición bloqueada</span>
+                </div>
+                <button className="btn btn-outline" onClick={handleMarkPending}>
+                  <RotateCcw size={14} /> Desbloquear edición
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="action-bar-status">
+                  <AlertCircle size={14} />
+                  <span>Pendiente de validación</span>
+                </div>
+                <div className="action-bar-buttons">
+                  <button className="btn btn-secondary" onClick={handleSave} disabled={saving}>
+                    {saving ? <Loader size={14} className="spin" /> : <Save size={14} />}
+                    Guardar correcciones
+                  </button>
+                  <button className="btn btn-primary" onClick={handleValidate} disabled={validating}>
+                    {validating ? <Loader size={14} className="spin" /> : <CheckCircle size={14} />}
+                    Validar registro
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── TOAST ── */}
+        {toast && (
+          <div className={`toast toast-${toast.type}`}>
+            {toast.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+            <span>{toast.message}</span>
+            <button className="toast-close" onClick={() => setToast(null)}><X size={14} /></button>
+          </div>
+        )}
+
+        {/* ── SPLIT: Image LEFT + Form RIGHT (HU-07 layout) ── */}
         {activeDoc ? (
-          <div className="det-split-v2">
+          <div className="det-split-v2 split-reversed">
+            {/* LEFT: Image */}
+            <div className="det-img-col">
+              <div className="img-card">
+                <div className="img-card-header">Documento original</div>
+                <div className="img-frame" onClick={() => setPreviewImg(getImageUrl(activeDoc))}>
+                  <img src={getImageUrl(activeDoc)} alt={activeDoc.nombre_archivo} />
+                  <div className="img-hover-overlay">
+                    <ZoomIn size={16} /> <span>Ampliar</span>
+                  </div>
+                </div>
+              </div>
+              <div className="img-meta">
+                <span className="img-filename">{activeDoc.nombre_archivo}</span>
+              </div>
+            </div>
+
+            {/* RIGHT: Editable form */}
             <div className="det-data-col">
               {/* Carta fields */}
-              <div className="card card-accent-blue">
+              <div className={`card card-accent-blue ${isLocked ? "card-locked" : ""}`}>
                 <div className="card-header">
                   <span className="card-title">Datos de la carta</span>
                   <div className="card-header-right">
@@ -231,21 +449,38 @@ export default function ExpedientesPage() {
                 </div>
                 <div className="card-body">
                   <div className="fields-grid-3">
-                    <FieldV2 label="Nº Carta" value={activeDoc.numero_carta} highlight />
-                    <FieldV2 label="Fecha carta" value={formatDateLong(activeDoc.fecha_carta)} />
-                    <FieldV2 label="Anexo" value={activeDoc.anexo} />
-                    <FieldV2 label="Nº Acta de toma de muestra" value={activeDoc.numero_acta} />
-                    <FieldV2 label="Fecha de muestra" value={formatDateLong(activeDoc.fecha_muestra)} />
-                    <FieldV2 label="Nº Informe de ensayo" value={activeDoc.numero_informe} />
+                    <EditField label="Nº Carta" field="numero_carta" type="text"
+                      value={editForm.numero_carta} onChange={updateField}
+                      locked={isLocked} required error={fieldErrors.numero_carta} />
+                    <EditField label="Fecha carta" field="fecha_carta" type="date"
+                      value={editForm.fecha_carta} onChange={updateField}
+                      locked={isLocked} required error={fieldErrors.fecha_carta} />
+                    <EditField label="Anexo" field="anexo" type="select"
+                      value={editForm.anexo} onChange={updateField}
+                      locked={isLocked} required error={fieldErrors.anexo}
+                      options={[
+                        { value: "", label: "Seleccionar..." },
+                        { value: "Anexo 1", label: "Anexo 1" },
+                        { value: "Anexo 2", label: "Anexo 2" },
+                      ]} />
+                    <EditField label="Nº Acta" field="numero_acta" type="text"
+                      value={editForm.numero_acta} onChange={updateField}
+                      locked={isLocked} required error={fieldErrors.numero_acta} />
+                    <EditField label="Fecha muestra" field="fecha_muestra" type="date"
+                      value={editForm.fecha_muestra} onChange={updateField}
+                      locked={isLocked} />
+                    <EditField label="Nº Informe" field="numero_informe" type="text"
+                      value={editForm.numero_informe} onChange={updateField}
+                      locked={isLocked} />
                   </div>
                 </div>
               </div>
 
               {/* VMA Parameters */}
               {activeDoc.parametros_vma?.length > 0 && (
-                <div className="card card-accent-purple">
+                <div className={`card card-accent-purple ${isLocked ? "card-locked" : ""}`}>
                   <div className="card-header">
-                    <span className="card-title">Parámetros VMA extraídos</span>
+                    <span className="card-title">Parámetros VMA</span>
                     <span className="card-subtitle">
                       {activeDoc.parametros_vma.length} parámetros
                     </span>
@@ -256,28 +491,36 @@ export default function ExpedientesPage() {
                         <tr>
                           <th className="col-code">Cód.</th>
                           <th>Parámetro</th>
-                          <th className="col-num">Valor extraído</th>
+                          <th className="col-num">Valor</th>
                           <th className="col-num">VMA ref.</th>
-                          <th className="col-unit">Unidad</th>
+                          <th className="col-unit">Und.</th>
                           <th className="col-status">Estado</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {activeDoc.parametros_vma.map((p, i) => {
-                          const excede = checkExcede(p.resultado_valor, p.vma_normado);
+                        {activeDoc.parametros_vma.map((p) => {
+                          const val = paramEdits[p.resultado_id] ?? p.resultado_valor ?? "";
+                          const excede = checkExcede(val, p.vma_normado);
                           return (
-                            <tr key={i} className={excede ? "row-exceed" : "row-ok"}>
+                            <tr key={p.resultado_id} className={excede ? "row-exceed" : "row-ok"}>
                               <td className="cell-code">{p.codigo}</td>
                               <td className="cell-param">{p.nombre_completo}</td>
-                              <td className={`cell-result ${excede ? "val-exceed" : "val-ok"}`}>
-                                {p.resultado_valor != null ? p.resultado_valor : (
-                                  <span className="val-empty">sin dato</span>
+                              <td className="cell-result">
+                                {isLocked ? (
+                                  <span className={excede ? "val-exceed" : "val-ok"}>{val || "—"}</span>
+                                ) : (
+                                  <input
+                                    type="text"
+                                    className={`param-input ${excede ? "param-input-exceed" : ""}`}
+                                    value={val}
+                                    onChange={(e) => updateParam(p.resultado_id, e.target.value)}
+                                  />
                                 )}
                               </td>
                               <td className="cell-vma">{p.vma_normado ?? "—"}</td>
                               <td className="cell-unit">{p.unidad}</td>
                               <td className="cell-status">
-                                {p.resultado_valor != null ? (
+                                {val ? (
                                   <span className={`vma-pill ${excede ? "pill-exceed" : "pill-ok"}`}>
                                     {excede ? "Supera" : "Dentro"}
                                   </span>
@@ -305,22 +548,6 @@ export default function ExpedientesPage() {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* RIGHT: Image */}
-            <div className="det-img-col">
-              <div className="img-card">
-                <div className="img-card-header">Documento original</div>
-                <div className="img-frame" onClick={() => setPreviewImg(getImageUrl(activeDoc))}>
-                  <img src={getImageUrl(activeDoc)} alt={activeDoc.nombre_archivo} />
-                  <div className="img-hover-overlay">
-                    <ZoomIn size={16} /> <span>Ampliar</span>
-                  </div>
-                </div>
-              </div>
-              <div className="img-meta">
-                <span className="img-filename">{activeDoc.nombre_archivo}</span>
-              </div>
             </div>
           </div>
         ) : (
@@ -353,7 +580,7 @@ export default function ExpedientesPage() {
       <div className="exp-header">
         <div>
           <h1>Expedientes procesados</h1>
-          <p>Revisa los datos extraídos de cada expediente y verifica que sean correctos</p>
+          <p>Revisa y valida los datos extraídos de cada expediente</p>
         </div>
       </div>
 
@@ -378,14 +605,10 @@ export default function ExpedientesPage() {
         </form>
       </div>
 
-      <div className="exp-meta">
-        <span>{total} expediente{total !== 1 && "s"}</span>
-      </div>
+      <div className="exp-meta"><span>{total} expediente{total !== 1 && "s"}</span></div>
 
       {loading ? (
-        <div className="exp-loading">
-          <Loader size={18} className="spin" /> Cargando expedientes...
-        </div>
+        <div className="exp-loading"><Loader size={18} className="spin" /> Cargando expedientes...</div>
       ) : expedientes.length === 0 ? (
         <div className="exp-empty">
           <FolderOpen size={32} />
@@ -396,13 +619,7 @@ export default function ExpedientesPage() {
           <table className="exp-table">
             <thead>
               <tr>
-                <th>NIS</th>
-                <th>Cliente</th>
-                <th>Fecha</th>
-                <th>Documentos</th>
-                <th>Anexos</th>
-                <th>Estado</th>
-                <th></th>
+                <th>NIS</th><th>Cliente</th><th>Fecha</th><th>Documentos</th><th>Anexos</th><th>Estado</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -413,13 +630,9 @@ export default function ExpedientesPage() {
                     <td className="td-nis">{exp.nis || "—"}</td>
                     <td className="td-cliente">{exp.cliente || "Sin asignar"}</td>
                     <td className="td-date">{formatDate(exp.fecha_mas_reciente || exp.creado_en)}</td>
-                    <td>
-                      <span className="docs-count"><Files size={13} /> {exp.num_documentos}</span>
-                    </td>
+                    <td><span className="docs-count"><Files size={13} /> {exp.num_documentos}</span></td>
                     <td className="td-anexos">
-                      {exp.anexos?.length > 0
-                        ? exp.anexos.map((a) => (<span key={a} className="badge-anexo">{a}</span>))
-                        : "—"}
+                      {exp.anexos?.length > 0 ? exp.anexos.map((a) => (<span key={a} className="badge-anexo">{a}</span>)) : "—"}
                     </td>
                     <td><span className={`badge st-${est}`}>{est}</span></td>
                     <td className="td-action"><Eye size={15} /></td>
@@ -433,35 +646,59 @@ export default function ExpedientesPage() {
 
       {totalPages > 1 && (
         <div className="exp-pagination">
-          <button disabled={page <= 1} onClick={() => setPage(page - 1)}>
-            <ChevronLeft size={16} /> Anterior
-          </button>
+          <button disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft size={16} /> Anterior</button>
           <span>Página {page} de {totalPages}</span>
-          <button disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
-            Siguiente <ChevronRight size={16} />
-          </button>
+          <button disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Siguiente <ChevronRight size={16} /></button>
         </div>
       )}
 
       {detailLoading && (
-        <div className="loading-overlay">
-          <Loader size={20} className="spin" /> Cargando expediente...
-        </div>
+        <div className="loading-overlay"><Loader size={20} className="spin" /> Cargando expediente...</div>
       )}
     </div>
   );
 }
 
-// ── Helpers ──
+// ══════════════════════════════════════════
+//  Components
+// ══════════════════════════════════════════
 
-function FieldV2({ label, value, highlight = false }) {
+function EditField({ label, field, type, value, onChange, locked, required, error, options }) {
+  const labelText = `${label}${required ? " *" : ""}`;
+
+  if (locked) {
+    return (
+      <div className="fv2">
+        <span className="fv2-label">{labelText}</span>
+        <span className="fv2-value fv2-highlight">{value || "—"}</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="fv2">
-      <span className="fv2-label">{label}</span>
-      <span className={`fv2-value ${highlight ? "fv2-highlight" : ""}`}>{value || "—"}</span>
+    <div className={`edit-field ${error ? "edit-field-error" : ""}`}>
+      <label className="edit-label">{labelText}</label>
+      {type === "select" ? (
+        <select className="edit-input" value={value || ""}
+          onChange={(e) => onChange(field, e.target.value)}>
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type={type} className="edit-input"
+          value={value || ""} onChange={(e) => onChange(field, e.target.value)}
+        />
+      )}
+      {error && <span className="edit-error-msg">Campo obligatorio</span>}
     </div>
   );
 }
+
+// ══════════════════════════════════════════
+//  Helpers
+// ══════════════════════════════════════════
 
 function checkExcede(resultado, vma) {
   if (resultado == null || !vma) return false;
@@ -476,22 +713,15 @@ function checkExcede(resultado, vma) {
 
 function getExtractionSummary(documentos) {
   const camposBase = ["numero_carta", "fecha_carta", "numero_acta", "fecha_muestra", "numero_informe"];
-  let camposExtraidos = 0;
-  let camposTotales = 0;
-  let totalParams = 0;
-  let excedidos = 0;
-  let conformes = 0;
+  let camposExtraidos = 0, camposTotales = 0, totalParams = 0, excedidos = 0, conformes = 0;
 
   for (const doc of documentos) {
     camposTotales += camposBase.length;
     camposExtraidos += camposBase.filter((c) => doc[c]).length;
     for (const p of (doc.parametros_vma || [])) {
       totalParams++;
-      if (checkExcede(p.resultado_valor, p.vma_normado)) {
-        excedidos++;
-      } else if (p.resultado_valor != null) {
-        conformes++;
-      }
+      if (checkExcede(p.resultado_valor, p.vma_normado)) excedidos++;
+      else if (p.resultado_valor != null) conformes++;
     }
   }
 

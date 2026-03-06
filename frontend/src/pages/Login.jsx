@@ -66,22 +66,18 @@ export default function Login() {
           <h1>
             Gestión Documental
             <br />
-            con <span className="highlight">Inteligencia Artificial</span>
+            <span className="highlight">Automatizada</span>
           </h1>
 
           <p>
             Sistema de extracción y validación automatizada de documentos
-            de notificación mediante OCR y procesamiento con IA.
+            de notificación de Valores Máximos Admisibles.
           </p>
 
           <div className="branding-features">
             <div className="feature-item">
               <span className="feature-dot"></span>
-              Extracción automática con EasyOCR + Gemini
-            </div>
-            <div className="feature-item">
-              <span className="feature-dot"></span>
-              Soporte para cartas Anexo 1 y Anexo 2
+              Extracción automática de datos de cartas
             </div>
             <div className="feature-item">
               <span className="feature-dot"></span>

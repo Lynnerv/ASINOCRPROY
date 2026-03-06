@@ -320,3 +320,10 @@
   .upload-footer { justify-content: stretch; }
   .upload-btn { width: 100%; justify-content: center; }
 }
+
+/* ═══════════════════════════════
+   DARK MODE — UPLOAD OVERRIDES
+   ═══════════════════════════════ */
+[data-theme="dark"] .upload-zone { border-color: var(--color-border); }
+[data-theme="dark"] .upload-zone:hover { border-color: #818cf8; }
+[data-theme="dark"] .upload-zone.drag-over { border-color: #818cf8; background: rgba(129,140,248,0.06); }

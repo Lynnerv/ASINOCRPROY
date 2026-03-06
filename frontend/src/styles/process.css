@@ -293,3 +293,16 @@
   .fr-action { margin-left: 0; }
   .move-modal { width: calc(100vw - 2rem); }
 }
+
+/* ═══════════════════════════════
+   DARK MODE — PROCESS OVERRIDES
+   ═══════════════════════════════ */
+[data-theme="dark"] .sc-pending { color: #fcd34d; }
+[data-theme="dark"] .sc-success { color: #4ade80; }
+[data-theme="dark"] .sc-error { color: #fca5a5; }
+[data-theme="dark"] .sc-total { color: #93c5fd; }
+[data-theme="dark"] .st-pendiente { background: rgba(251,191,36,0.12); color: #fcd34d; }
+[data-theme="dark"] .st-error { background: rgba(248,113,113,0.1); color: #fca5a5; }
+[data-theme="dark"] .st-procesado { background: rgba(74,222,128,0.1); color: #4ade80; }
+[data-theme="dark"] .fr-warning { background: rgba(251,191,36,0.06); border-color: #78350f; color: #fcd34d; }
+[data-theme="dark"] .progress-fill { background: linear-gradient(90deg, #6366f1, #818cf8); }
