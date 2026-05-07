@@ -4,6 +4,8 @@ import { documentApi } from "../api/documents";
 import { Loader, Download, ArrowLeft } from "lucide-react";
 import "../styles/document-detail.css";
 
+const API_BASE = import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:3000";
+
 export default function DocumentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -25,109 +27,55 @@ export default function DocumentDetail() {
       setFileLoading(true);
       setFileError(null);
 
-      // =========================
-      // 1) Cargar metadatos (fatal si falla)
-      // =========================
       try {
+        // 1. Datos
         const dRes = await documentApi.getById(id);
-        const documento = dRes.data.documento;
-
         if (cancelled) return;
-        setDoc(documento);
-      } catch (e) {
-        console.error("getById error:", e);
-        if (!cancelled) {
-          setDoc(null);
-          setBlobUrl(null);
-        }
-        if (!cancelled) setLoading(false);
-        if (!cancelled) setFileLoading(false);
-        return;
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+        setDoc(dRes.data.documento);
 
-      // =========================
-      // 2) Cargar archivo (NO es fatal si falla)
-      // =========================
-      try {
+        // 2. Archivo (Blob seguro)
         const bRes = await documentApi.getFileBlob(id);
-        const blob = bRes.data;
-
-        // Si el backend devolvió error en JSON pero axios lo recibió como blob:
-        const ct = (
-          bRes.headers?.["content-type"] ||
-          blob?.type ||
-          ""
-        ).toLowerCase();
-
-        if (ct.includes("application/json")) {
-          const text = await blob.text();
-          throw new Error(`Servidor devolvió JSON (posible error): ${text}`);
-        }
-
-        // Detectar si es PDF
-        const filename = String(
-          (cancelled ? "" : (doc?.nombre_archivo || "")) // evita warning
-        ).toLowerCase();
-
-        const pdf =
-          ct.includes("pdf") ||
-          filename.endsWith(".pdf") ||
-          String(doc?.tipo_archivo || "").toLowerCase() === "pdf";
-
+        if (bRes.data.type === "application/json") throw new Error();
+        
+        currentUrl = URL.createObjectURL(bRes.data);
         if (cancelled) return;
-
-        setIsPdf(pdf);
-
-        currentUrl = URL.createObjectURL(blob);
+        
         setBlobUrl(currentUrl);
+        setIsPdf(dRes.data.documento.nombre_archivo?.toLowerCase().endsWith('.pdf'));
       } catch (e) {
-        console.error("getFileBlob error:", e);
-        if (!cancelled) {
-          setBlobUrl(null);
-          setFileError("No se pudo cargar la vista previa del archivo.");
-        }
+        if (!cancelled) setFileError("Error al cargar vista previa.");
       } finally {
-        if (!cancelled) setFileLoading(false);
+        if (!cancelled) { setLoading(false); setFileLoading(false); }
       }
     }
-
     load();
-
-    return () => {
-      cancelled = true;
-      if (currentUrl) URL.revokeObjectURL(currentUrl);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { if (currentUrl) URL.revokeObjectURL(currentUrl); cancelled = true; };
   }, [id]);
 
   async function onDownload() {
     try {
       const res = await documentApi.downloadOriginal(id);
-      const blob = res.data;
-      const url = URL.createObjectURL(blob);
-
+      const blob = new Blob([res.data]);
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-
-      // Nombre real con extensión si existe
-      a.download = doc?.nombre_archivo || `documento_${id}`;
-
+      a.download = doc?.nombre_archivo || `archivo_${id}`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      window.URL.revokeObjectURL(url);
     } catch (e) {
-      console.error("download error:", e);
+      console.error("Error en descarga", e);
     }
   }
 
-  if (loading) {
-    return (
-      <div className="dd-loading">
-        <Loader size={18} className="spin" /> Cargando detalle...
-      </div>
-    );
-  }
+    if (loading) {
+      return (
+        <div className="dd-loading">
+          <Loader size={18} className="spin" /> Cargando detalle...
+        </div>
+      );
+    }
 
   if (!doc) {
     return <div className="dd-loading">No se pudo cargar el documento.</div>;
@@ -147,7 +95,7 @@ export default function DocumentDetail() {
 
       <div className="dd-grid">
         <div className="dd-card">
-          <div className="dd-card-head">Vista previa (Blob)</div>
+          <div className="dd-card-head">Vista previa</div>
 
           {fileLoading ? (
             <div className="dd-loading">

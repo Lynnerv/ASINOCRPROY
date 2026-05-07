@@ -38,7 +38,7 @@ load_dotenv()
 
 # Modelo recomendado: gemini-2.0-flash (rápido, económico, suficiente
 # para extracción de campos de texto estructurado)
-DEFAULT_MODEL = "gemini-flash-latest"
+DEFAULT_MODEL = "gemini-2.5-flash"
 
 # Prompt del sistema: define el comportamiento del LLM
 SYSTEM_PROMPT = """Eres un sistema de extracción de datos que procesa texto OCR de cartas de notificación de SEDAPAL (Servicio de Agua Potable y Alcantarillado de Lima).

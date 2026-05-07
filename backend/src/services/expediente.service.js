@@ -188,11 +188,36 @@ module.exports = {
   createEmptyExpediente,
   deleteDocument,
   moveDocument,
-  // HU-07: Validación
+  // HU-07: Validacion
   updateDocumentFields,
   validateDocument,
   markDocumentPending,
+  // Ocultar expediente
+  hideExpediente,
 };
+
+/**
+ * Oculta un expediente (soft delete).
+ * Cambia visible = false para que no aparezca en las listas.
+ */
+async function hideExpediente(expedienteId, userId) {
+  const result = await query(
+    `UPDATE expedientes SET visible = false, actualizado_en = NOW() WHERE id = $1 RETURNING id`,
+    [expedienteId]
+  );
+  if (result.rows.length === 0) {
+    throw Object.assign(new Error("Expediente no encontrado"), { status: 404 });
+  }
+
+  // Registrar en historial
+  await query(
+    `INSERT INTO historial_acciones (usuario_id, accion, entidad, entidad_id)
+     VALUES ($1, 'ocultar_expediente', 'expedientes', $2)`,
+    [userId, expedienteId]
+  );
+
+  return { id: expedienteId };
+}
 
 /**
  * Lista expedientes procesados con paginación y filtros (HU-06).
@@ -205,6 +230,9 @@ async function listProcessedExpedientes({ page = 1, limit = 15, estado = null, b
   const offset = (page - 1) * limit;
   const conditions = [];
   const params = [];
+
+  // Solo expedientes visibles
+  conditions.push(`(e.visible IS NULL OR e.visible = true)`);
 
   // Solo expedientes que tienen al menos 1 documento procesado o validado
   conditions.push(
@@ -219,7 +247,13 @@ async function listProcessedExpedientes({ page = 1, limit = 15, estado = null, b
   if (buscar) {
     params.push(`%${buscar}%`);
     const idx = params.length;
-    conditions.push(`(c.nis ILIKE $${idx} OR c.nombre ILIKE $${idx})`);
+    // Buscar por ID de expediente, NIS o nombre del cliente
+    const isNumeric = /^\d+$/.test(buscar.trim());
+    if (isNumeric) {
+      conditions.push(`(e.id = ${parseInt(buscar.trim())} OR c.nis ILIKE $${idx} OR c.nombre ILIKE $${idx})`);
+    } else {
+      conditions.push(`(c.nis ILIKE $${idx} OR c.nombre ILIKE $${idx})`);
+    }
   }
 
   const whereClause = `WHERE ${conditions.join(" AND ")}`;

@@ -10,7 +10,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { LogOut, User, Moon, Sun } from "lucide-react";
+import { LogOut, User, Moon, Sun, AlertTriangle } from "lucide-react";
 import Bell from "./Bell";
 import "../styles/layout.css";
 
@@ -53,17 +53,29 @@ export default function Layout({ children }) {
   const navItems = getNavItems(usuario?.rol);
 
   const [theme, setTheme] = useState(getInitialTheme);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     try { localStorage.setItem("asin-theme", theme); } catch {}
   }, [theme]);
 
+  // Close modal with Escape key
+  useEffect(() => {
+    if (!showLogoutModal) return;
+    function onKey(e) {
+      if (e.key === "Escape") setShowLogoutModal(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showLogoutModal]);
+
   function toggleTheme() {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   }
 
-  function handleLogout() {
+  function confirmLogout() {
+    setShowLogoutModal(false);
     logout();
     navigate("/login", { replace: true });
   }
@@ -79,29 +91,31 @@ export default function Layout({ children }) {
               <span className="logo-text">ASIN SOLUTIONS</span>
             </Link>
 
-            <nav className="header-nav">
-              {navItems.map((item) => {
-                const isActive = location.pathname === item.to;
+            {usuario && (
+              <nav className="header-nav">
+                {navItems.map((item) => {
+                  const isActive = location.pathname === item.to;
 
-                if (item.disabled) {
+                  if (item.disabled) {
+                    return (
+                      <span key={item.to} className="nav-link nav-disabled">
+                        {item.label}
+                      </span>
+                    );
+                  }
+
                   return (
-                    <span key={item.to} className="nav-link nav-disabled">
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      className={`nav-link ${isActive ? "nav-active" : ""}`}
+                    >
                       {item.label}
-                    </span>
+                    </Link>
                   );
-                }
-
-                return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    className={`nav-link ${isActive ? "nav-active" : ""}`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
+                })}
+              </nav>
+            )}
           </div>
 
           <div className="header-right">
@@ -109,19 +123,27 @@ export default function Layout({ children }) {
               title={theme === "dark" ? "Modo claro" : "Modo oscuro"}>
               {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
             </button>
-            <Bell />
-            <div className="header-user">
-              <div className="user-avatar">
-                <User size={14} />
-              </div>
-              <div className="user-info">
-                <span className="user-name">{usuario?.nombre}</span>
-                <span className="user-role">{usuario?.rol}</span>
-              </div>
-            </div>
-            <button className="logout-btn" onClick={handleLogout} title="Cerrar sesión">
-              <LogOut size={15} />
-            </button>
+            {usuario ? (
+              <>
+                <Bell />
+                <div className="header-user">
+                  <div className="user-avatar">
+                    <User size={14} />
+                  </div>
+                  <div className="user-info">
+                    <span className="user-name">{usuario.nombre}</span>
+                    <span className="user-role">{usuario.rol}</span>
+                  </div>
+                </div>
+                <button className="logout-btn" onClick={() => setShowLogoutModal(true)} title="Cerrar sesión">
+                  <LogOut size={15} />
+                </button>
+              </>
+            ) : (
+              <button className="logout-btn" onClick={() => navigate("/login")} title="Iniciar sesión">
+                <User size={15} />
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -140,11 +162,44 @@ export default function Layout({ children }) {
             <span className="footer-sep">·</span>
             <span>Sistema de Gestión Documental</span>
           </div>
+          <div className="footer-legal">
+            <Link to="/legal/privacidad" className="footer-link">Políticas de Privacidad</Link>
+            <span className="footer-sep">·</span>
+            <Link to="/legal/terminos" className="footer-link">Términos y Condiciones</Link>
+            <span className="footer-sep">·</span>
+            <Link to="/legal/arco" className="footer-link">Derechos ARCO</Link>
+            <span className="footer-sep">·</span>
+            <Link to="/legal/seguridad" className="footer-link">Seguridad</Link>
+          </div>
           <div className="footer-right">
             <span>Asin Solutions © {new Date().getFullYear()}</span>
           </div>
         </div>
       </footer>
+
+      {/* ---- Logout confirmation modal ---- */}
+      {showLogoutModal && (
+        <div className="logout-modal-backdrop" onClick={() => setShowLogoutModal(false)}>
+          <div className="logout-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="logout-modal-icon">
+              <AlertTriangle size={24} />
+            </div>
+            <h3 className="logout-modal-title">¿Cerrar sesión?</h3>
+            <p className="logout-modal-text">
+              Se cerrará tu sesión actual y volverás a la pantalla de inicio de sesión.
+            </p>
+            <div className="logout-modal-actions">
+              <button className="logout-modal-btn logout-modal-cancel"
+                onClick={() => setShowLogoutModal(false)}>
+                Cancelar
+              </button>
+              <button className="logout-modal-btn logout-modal-confirm" onClick={confirmLogout}>
+                <LogOut size={14} /> Cerrar sesión
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

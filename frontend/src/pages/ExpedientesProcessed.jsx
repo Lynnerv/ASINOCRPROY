@@ -12,11 +12,14 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { expedienteApi } from "../api/documents";
 import {
   Search, X, ChevronLeft, ChevronRight, FileText,
-  Loader, Eye, ZoomIn, FolderOpen, Files,
+  Loader, Eye, EyeOff, ZoomIn, FolderOpen, Files,
   Save, CheckCircle, RotateCcw, Lock, AlertCircle,
+  FolderPlus,
+  Camera, ArrowRight,
 } from "lucide-react";
 import "../styles/expedientes.css";
 
@@ -34,6 +37,8 @@ const FILTROS = [
 const CAMPOS_OBLIGATORIOS = ["numero_carta", "fecha_carta", "anexo", "numero_acta"];
 
 export default function ExpedientesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // ── List state ──
   const [expedientes, setExpedientes] = useState([]);
   const [total, setTotal] = useState(0);
@@ -57,10 +62,20 @@ export default function ExpedientesPage() {
   const [validating, setValidating] = useState(false);
   const [toast, setToast] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [hideConfirm, setHideConfirm] = useState(null);
 
   const LIMIT = 15;
 
   useEffect(() => { loadExpedientes(); }, [page, filtroEstado, busqueda]);
+
+  useEffect(() => {
+    const openId = searchParams.get("open");
+    if (openId && !detail) {
+      openDetail(parseInt(openId));
+      searchParams.delete("open");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams]);
 
   // Populate edit form when active document changes
   useEffect(() => {
@@ -153,6 +168,24 @@ export default function ExpedientesPage() {
   }
 
   function handleFilterChange(estado) { setFiltroEstado(estado); setPage(1); }
+
+  function handleHide(expId, nis) {
+    setHideConfirm({ id: expId, nis: nis || "N/A" });
+  }
+
+  async function confirmHide() {
+    if (!hideConfirm) return;
+    try {
+      await expedienteApi.hideExpediente(hideConfirm.id);
+      setHideConfirm(null);
+      setToast({ type: "success", message: `Expediente #${hideConfirm.id} ocultado correctamente` });
+      loadExpedientes();
+    } catch (err) {
+      const msg = err.response?.data?.error || "Error al ocultar el expediente";
+      setToast({ type: "error", message: msg });
+      setHideConfirm(null);
+    }
+  }
 
   function formatDate(dateStr) {
     if (!dateStr) return "—";
@@ -351,11 +384,58 @@ export default function ExpedientesPage() {
           </div>
         </div>
 
-        {/* ── TABS ── */}
+        {/* CTA: Preparar servicio (HU-16) */}
+        {["completo", "servicio_programado", "evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado) && (
+          <Link to={`/expedientes/${detail.id}/servicio`} className="evid-cta">
+            <div className="evid-cta-icon">
+              <FileText size={20} />
+            </div>
+            <div className="evid-cta-text">
+              <div className="evid-cta-title">
+                {detail.precio_servicio || detail.fecha_programacion
+                  ? "Editar datos del servicio"
+                  : "Preparar servicio (proforma y programacion)"}
+              </div>
+              <div className="evid-cta-subtitle">
+                {detail.precio_servicio || detail.fecha_programacion
+                  ? `Precio: S/.${detail.precio_servicio || "--"} | Fecha: ${detail.fecha_programacion?.split("T")[0] || "--"}`
+                  : "Registra el precio y fecha para generar la proforma y carta de programacion"}
+              </div>
+            </div>
+            <div className="evid-cta-arrow">
+              <ArrowRight size={18} />
+            </div>
+          </Link>
+        )}
+
+        {/* CTA: Completar evidencias (HU-11) */}
+        {["completo", "servicio_programado", "evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado) && (
+          <Link to={`/expedientes/${detail.id}/evidencias`} className="evid-cta">
+            <div className="evid-cta-icon">
+              <FolderPlus size={20} />
+            </div>
+            <div className="evid-cta-text">
+              <div className="evid-cta-title">
+                {detail.estado === "completo"
+                  ? "Completar evidencias del expediente"
+                  : "Editar evidencias del expediente"}
+              </div>
+              <div className="evid-cta-subtitle">
+                {detail.estado === "completo"
+                  ? "Adjunta fotos, informe de laboratorio y N° de factura para continuar"
+                  : "Reemplaza archivos o corrige el N° de factura"}
+              </div>
+            </div>
+            <div className="evid-cta-arrow">
+              <ArrowRight size={18} />
+            </div>
+          </Link>
+        )}
+
+        {/* ── TABS SIMPLIFICADOS EN JSX ── */}
         {docs.length > 0 && (
           <div className="det-tabs">
             {docs.map((doc, i) => {
-              const paramCount = (doc.parametros_vma || []).length;
               const excCount = (doc.parametros_vma || [])
                 .filter((p) => checkExcede(p.resultado_valor, p.vma_normado)).length;
               return (
@@ -364,11 +444,15 @@ export default function ExpedientesPage() {
                   onClick={() => setActiveDocIndex(i)}
                 >
                   <span className="tab-name">{doc.anexo || `Documento ${i + 1}`}</span>
-                  <span className="tab-info">
-                    {paramCount > 0 ? `${paramCount} parám.` : "Sin parámetros"}
-                  </span>
-                  {excCount > 0 && <span className="tab-count red">{excCount}</span>}
-                  <span className={`tab-badge st-${doc.estado}`}>{doc.estado}</span>
+                  
+                  {/* USANDO ICONOS DE LUCIDE-REACT EN VEZ DE EMOJIS */}
+                  {doc.estado === "validado" ? (
+                    <CheckCircle size={14} className="tab-icon-validado" />
+                  ) : (
+                    <AlertCircle size={14} className="tab-icon-pendiente" />
+                  )}
+
+                  {excCount > 0 && <span className="tab-dot-alert" title="Supera VMA"></span>}
                 </button>
               );
             })}
@@ -594,7 +678,7 @@ export default function ExpedientesPage() {
         </div>
         <form className="filter-search" onSubmit={handleSearch}>
           <Search size={16} className="search-icon" />
-          <input type="text" placeholder="Buscar por NIS o cliente..."
+          <input type="text" placeholder="Buscar por N° expediente, NIS o cliente..."
             value={busquedaInput} onChange={(e) => setBusquedaInput(e.target.value)} />
           {busqueda && (
             <button type="button" className="search-clear"
@@ -619,7 +703,7 @@ export default function ExpedientesPage() {
           <table className="exp-table">
             <thead>
               <tr>
-                <th>NIS</th><th>Cliente</th><th>Fecha</th><th>Documentos</th><th>Anexos</th><th>Estado</th><th></th>
+                <th>N° Exp.</th><th>NIS</th><th>Cliente</th><th>Fecha</th><th>Documentos</th><th>Anexos</th><th>Estado</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -627,6 +711,7 @@ export default function ExpedientesPage() {
                 const est = getEstadoLabel(exp);
                 return (
                   <tr key={exp.id} className="exp-row" onClick={() => openDetail(exp.id)}>
+                    <td className="td-exp-id">{exp.id}</td>
                     <td className="td-nis">{exp.nis || "—"}</td>
                     <td className="td-cliente">{exp.cliente || "Sin asignar"}</td>
                     <td className="td-date">{formatDate(exp.fecha_mas_reciente || exp.creado_en)}</td>
@@ -635,7 +720,15 @@ export default function ExpedientesPage() {
                       {exp.anexos?.length > 0 ? exp.anexos.map((a) => (<span key={a} className="badge-anexo">{a}</span>)) : "—"}
                     </td>
                     <td><span className={`badge st-${est}`}>{est}</span></td>
-                    <td className="td-action"><Eye size={15} /></td>
+                    <td className="td-actions">
+                      <button className="action-icon" title="Ver detalle" onClick={(e) => { e.stopPropagation(); openDetail(exp.id); }}>
+                        <Eye size={15} />
+                      </button>
+                      <button className="action-icon action-hide" title="Ocultar expediente"
+                        onClick={(e) => { e.stopPropagation(); handleHide(exp.id, exp.nis); }}>
+                        <EyeOff size={15} />
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
@@ -654,6 +747,26 @@ export default function ExpedientesPage() {
 
       {detailLoading && (
         <div className="loading-overlay"><Loader size={20} className="spin" /> Cargando expediente...</div>
+      )}
+
+      {hideConfirm && (
+        <div className="modal-backdrop" onClick={() => setHideConfirm(null)}>
+          <div className="hide-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="hide-modal-icon">
+              <EyeOff size={24} />
+            </div>
+            <h3 className="hide-modal-title">Ocultar expediente</h3>
+            <p className="hide-modal-text">
+              El expediente <strong>#{hideConfirm.id}</strong>
+              {hideConfirm.nis !== "N/A" && <> (NIS: {hideConfirm.nis})</>} dejara
+              de ser visible en la lista. Podra ser restaurado por un administrador.
+            </p>
+            <div className="hide-modal-actions">
+              <button className="btn btn-outline" onClick={() => setHideConfirm(null)}>Cancelar</button>
+              <button className="btn btn-danger" onClick={confirmHide}>Ocultar expediente</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

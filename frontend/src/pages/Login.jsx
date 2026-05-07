@@ -164,6 +164,13 @@ export default function Login() {
           </div>
 
           <div className="login-footer">
+            <div className="login-legal-links">
+              <Link to="/legal/privacidad">Políticas de Privacidad</Link>
+              <span>·</span>
+              <Link to="/legal/terminos">Términos</Link>
+              <span>·</span>
+              <Link to="/legal/arco">Derechos ARCO</Link>
+            </div>
             Asin Solutions © {new Date().getFullYear()}
           </div>
         </div>

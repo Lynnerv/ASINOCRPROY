@@ -3,7 +3,9 @@
    ============================================ */
 
 .upload-page {
-  max-width: 700px;
+  max-width: 800px;  /* Aumenté un poquito el ancho para que la lista de archivos respire mejor */
+  margin: 0 auto;    /* Esta es la línea que centra todo el contenedor */
+  padding: 0 1rem;   /* Un margen de seguridad lateral para pantallas pequeñas */
 }
 
 .upload-title-row {

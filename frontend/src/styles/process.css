@@ -2,8 +2,11 @@
    Process Page — Visual Control Panel
    ============================================ */
 
-.process-page { max-width: 860px; }
-
+.process-page { 
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
 .process-loading {
   display: flex; align-items: center; gap: 8px;
   color: var(--color-text-secondary); padding: 3rem 0;

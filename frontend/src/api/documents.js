@@ -22,6 +22,16 @@ export const documentApi = {
   list: (params) => api.get("/documentos", { params }),
   getById: (id) => api.get(`/documentos/${id}`),
 
+  /** Visualización segura (Blob) */
+  getFileBlob: (id) => api.get(`/documentos/${id}/archivo`, { 
+    responseType: 'blob' 
+  }),
+
+  /** Descarga forzada original (Blob) -> ¡AQUÍ ESTABA EL ERROR! */
+  downloadOriginal: (id) => api.get(`/documentos/${id}/archivo?download=1`, { 
+    responseType: 'blob' 
+  }),
+
   /** Resumen de estados */
   getProcessStatus: () => api.get("/procesar/estado"),
 
@@ -63,6 +73,9 @@ export const expedienteApi = {
     api.patch(`/expedientes/documento/${docId}/validar`),
   markPending: (docId) =>
     api.patch(`/expedientes/documento/${docId}/pendiente`),
+
+  hideExpediente: (expId) =>
+    api.patch(`/expedientes/${expId}/ocultar`),
 };
 
 export const statsApi = {

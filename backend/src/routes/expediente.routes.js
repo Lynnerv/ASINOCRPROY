@@ -165,4 +165,15 @@ router.patch("/documento/:id/mover", auth, async (req, res, next) => {
   }
 });
 
+// Ocultar expediente (soft delete)
+router.patch("/:id/ocultar", auth, async (req, res, next) => {
+  try {
+    const expId = parseInt(req.params.id);
+    await expedienteService.hideExpediente(expId, req.usuario.id);
+    res.json({ success: true, message: "Expediente ocultado" });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

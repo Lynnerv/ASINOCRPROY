@@ -2,8 +2,15 @@
    Users Page — Admin user management
    ============================================ */
 
-.users-page { max-width: 900px; }
+/* ============================================
+   Users Page — Admin user management
+   ============================================ */
 
+.users-page { 
+  max-width: 1000px; /* Un poco más ancho para que la tabla de datos no se apriete */
+  margin: 0 auto;    /* La magia para centrar todo el panel */
+  padding: 0 1rem;   /* Margen lateral para pantallas más pequeñas */
+}
 .users-loading {
   display: flex; align-items: center; gap: 8px;
   color: var(--color-text-secondary); padding: 3rem 0;

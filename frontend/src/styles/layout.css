@@ -208,6 +208,27 @@
   color: #64748b;
 }
 
+/* Footer legal links */
+.footer-legal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.74rem;
+  color: #94a3b8;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.footer-link {
+  color: #cbd5e1;
+  text-decoration: none;
+  transition: color var(--transition);
+  white-space: nowrap;
+}
+.footer-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 840px) {
   .header-inner {
@@ -263,3 +284,121 @@
 [data-theme="dark"] .footer-left { color: var(--dm-footer-text); }
 [data-theme="dark"] .footer-right { color: var(--dm-footer-text-dim); }
 [data-theme="dark"] .footer-logo { filter: brightness(1.5); }
+
+/* ═══════════════════════════════
+   LOGOUT CONFIRMATION MODAL
+   ═══════════════════════════════ */
+.logout-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.logout-modal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem 1.75rem 1.5rem;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  animation: modalPop 0.2s ease-out;
+}
+
+.logout-modal-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  margin-bottom: 0.85rem;
+}
+
+.logout-modal-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.4rem;
+  letter-spacing: -0.3px;
+}
+
+.logout-modal-text {
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.logout-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.logout-modal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  min-width: 120px;
+}
+
+.logout-modal-cancel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+.logout-modal-cancel:hover {
+  border-color: var(--color-text-muted);
+  color: var(--color-text);
+}
+
+.logout-modal-confirm {
+  background: #dc2626;
+  border: 1px solid #dc2626;
+  color: white;
+}
+.logout-modal-confirm:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+/* Dark mode */
+[data-theme="dark"] .logout-modal-backdrop {
+  background: rgba(0, 0, 0, 0.7);
+}
+[data-theme="dark"] .logout-modal-confirm {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+[data-theme="dark"] .logout-modal-confirm:hover {
+  background: #f87171;
+  border-color: #f87171;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.95) translateY(-8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}

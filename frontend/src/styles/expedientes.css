@@ -2,9 +2,15 @@
    Expedientes (HU-06) + Validación (HU-07)
    ============================================ */
 
-.exp-page { max-width: 960px; }
-.exp-page-wide { max-width: 1120px; }
+.exp-page { 
+  max-width: 960px; 
+  margin: 0 auto;  /* Centra la vista principal de la tabla */
+  padding: 0 1rem; /* Margen de seguridad lateral */
+}
 
+.exp-page-wide { 
+  max-width: 1120px; /* La vista de detalle (imagen + formulario) es más ancha, pero heredará el centrado */
+}
 /* ── Header ── */
 .exp-header { margin-bottom: 1.25rem; }
 .exp-header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.4px; margin-bottom: 0.2rem; }
@@ -73,7 +79,9 @@
 .td-nis { font-family: var(--font-mono, monospace); font-weight: 600; font-size: 0.82rem; color: #4338ca; }
 .td-cliente { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .td-date { font-size: 0.78rem; color: var(--color-text-muted); white-space: nowrap; }
-.td-anexos { display: flex; gap: 4px; }
+.td-anexos { vertical-align: middle; 
+  padding-top: 0.5rem; /* Pequeño ajuste para centrar visualmente con el texto */
+  padding-bottom: 0.5rem;}
 .td-action { color: var(--color-text-muted); width: 30px; }
 .exp-row:hover .td-action { color: var(--color-primary); }
 
@@ -198,20 +206,43 @@
 .ext-counter.green .ext-counter-label { color: #22c55e; }
 
 /* ── TABS ── */
+/* ── TABS ── */
 .det-tabs {
-  display: flex; gap: 6px; margin-bottom: 1rem;
-  background: var(--color-surface); border: 1px solid var(--color-border);
-  border-radius: var(--radius-md); padding: 4px;
+  display: flex; gap: 8px; margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-border);
 }
 .det-tab {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 16px; background: transparent; border: none; border-radius: 6px;
-  font-family: var(--font-body); font-size: 0.84rem;
+  position: relative;
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 16px; background: transparent; border: none;
+  border-bottom: 2px solid transparent;
+  font-family: var(--font-body); font-size: 0.9rem;
   color: var(--color-text-muted); cursor: pointer; transition: all var(--transition);
+  margin-bottom: -1px; /* Hace que el borde inferior se superponga con la línea de la caja */
 }
-.det-tab:hover { background: #f1f5f9; color: var(--color-text); }
-.det-tab.active { background: #4338ca; color: white; font-weight: 600; }
+.det-tab:hover { 
+  color: var(--color-text); 
+  background: var(--color-surface-hover); 
+  border-radius: 6px 6px 0 0; 
+}
+.det-tab.active { 
+  color: #4338ca; 
+  font-weight: 600; 
+  border-bottom-color: #4338ca; 
+}
 .tab-name { font-weight: 600; }
+/* Iconos de estado (Para los iconos de Lucide) */
+.tab-icon-validado { color: #16a34a; }
+.tab-icon-pendiente { color: #d97706; }
+/* Punto de alerta sutil para VMA */
+.tab-dot-alert {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 6px; height: 6px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--color-surface); /* Crea un borde invisible para separarlo */
+}
 .tab-info { font-size: 0.74rem; color: var(--color-text-muted); }
 .det-tab.active .tab-info { color: rgba(255,255,255,0.55); }
 .tab-count {
@@ -541,8 +572,15 @@ select.edit-input { cursor: pointer; }
 [data-theme="dark"] .ext-counter.green .ext-counter-label { color: #86efac; }
 
 /* Tabs */
-[data-theme="dark"] .det-tab.active { background: #4338ca; }
-[data-theme="dark"] .det-tab:hover { background: var(--color-surface-hover); }
+/* Tabs Dark Mode */
+[data-theme="dark"] .det-tab.active { 
+  color: #818cf8; 
+  border-bottom-color: #818cf8; 
+  background: transparent; 
+}
+[data-theme="dark"] .det-tab:hover { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .tab-dot-alert { box-shadow: 0 0 0 2px var(--color-bg); }
+
 [data-theme="dark"] .tab-count.red { background: rgba(248,113,113,0.15); color: #fca5a5; }
 
 /* Action bar (HU-07) */
@@ -610,3 +648,189 @@ select.edit-input { cursor: pointer; }
 
 /* Image viewer */
 [data-theme="dark"] .img-frame:hover .img-hover-overlay { background: rgba(99,102,241,0.55); }
+
+/* ═══════════════════════════════
+   CTA: Completar evidencias (HU-11)
+   ═══════════════════════════════ */
+.evid-cta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #f0f9ff 0%, #eef2ff 100%);
+  border: 1px solid #bae6fd;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: var(--color-text);
+  transition: all var(--transition);
+}
+.evid-cta:hover {
+  border-color: #6366f1;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.12);
+}
+.evid-cta-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #4338ca;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.evid-cta-text { flex: 1; min-width: 0; }
+.evid-cta-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 2px;
+  letter-spacing: -0.2px;
+}
+.evid-cta-subtitle {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+.evid-cta-arrow {
+  color: #6366f1;
+  flex-shrink: 0;
+  transition: transform var(--transition);
+}
+.evid-cta:hover .evid-cta-arrow {
+  transform: translateX(3px);
+}
+
+[data-theme="dark"] .evid-cta {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.25) 0%, rgba(67, 56, 202, 0.15) 100%);
+  border-color: #334155;
+}
+[data-theme="dark"] .evid-cta:hover {
+  border-color: #818cf8;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .evid-cta-icon {
+  background: rgba(129, 140, 248, 0.15);
+  color: #a5b4fc;
+}
+[data-theme="dark"] .evid-cta-arrow { color: #a5b4fc; }
+
+/* ═══════════════════════════════
+   N Exp column
+   ═══════════════════════════════ */
+.td-exp-id {
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════
+   Table action buttons
+   ═══════════════════════════════ */
+.td-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+.action-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.action-icon:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+.action-hide:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+/* ═══════════════════════════════
+   Hide confirmation modal
+   ═══════════════════════════════ */
+.hide-modal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  text-align: center;
+}
+.hide-modal-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  margin-bottom: 0.85rem;
+}
+.hide-modal-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 0.5rem;
+}
+.hide-modal-text {
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+  line-height: 1.55;
+  margin-bottom: 1.5rem;
+}
+.hide-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.btn-danger {
+  background: #dc2626;
+  border: 1px solid #dc2626;
+  color: white;
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.btn-danger:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+
+[data-theme="dark"] .hide-modal-icon {
+  background: rgba(248, 113, 113, 0.12);
+  color: #fca5a5;
+}
+[data-theme="dark"] .btn-danger {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+[data-theme="dark"] .btn-danger:hover {
+  background: #f87171;
+  border-color: #f87171;
+}
+[data-theme="dark"] .action-hide:hover {
+  background: rgba(248, 113, 113, 0.1);
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.25);
+}
