@@ -15,18 +15,14 @@ import Bell from "./Bell";
 import "../styles/layout.css";
 
 /**
- * Navegación según rol:
- *   admin   → Inicio, Cargar, Procesar, Expedientes, Documentos, Reportes, Usuarios
- *   operador → Inicio, Cargar, Procesar, Expedientes, Documentos, Reportes
+ * Navegacion segun rol:
+ *   admin    -> Inicio, Expedientes, Usuarios
+ *   operador -> Inicio, Expedientes
  */
 function getNavItems(rol) {
   const common = [
     { to: "/", label: "Inicio" },
-    { to: "/cargar", label: "Cargar Cartas" },
-    { to: "/procesar", label: "Procesar" },
     { to: "/expedientes", label: "Expedientes" },
-    { to: "/documentos", label: "Documentos" },
-    { to: "/reportes", label: "Reportes", disabled: true },
   ];
 
   if (rol === "administrador") {

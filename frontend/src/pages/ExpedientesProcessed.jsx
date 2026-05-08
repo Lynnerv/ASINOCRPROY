@@ -14,8 +14,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { expedienteApi } from "../api/documents";
+import CargarModal from "../components/CargarModal";
 import {
-  Search, X, ChevronLeft, ChevronRight, FileText,
+  Search, X, ChevronLeft, ChevronRight, FileText, Upload,
   Loader, Eye, EyeOff, ZoomIn, FolderOpen, Files,
   Save, CheckCircle, RotateCcw, Lock, AlertCircle,
   FolderPlus,
@@ -63,6 +64,7 @@ export default function ExpedientesPage() {
   const [toast, setToast] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [hideConfirm, setHideConfirm] = useState(null);
+  const [showCargarModal, setShowCargarModal] = useState(false);
 
   const LIMIT = 15;
 
@@ -663,10 +665,23 @@ export default function ExpedientesPage() {
     <div className="exp-page">
       <div className="exp-header">
         <div>
-          <h1>Expedientes procesados</h1>
-          <p>Revisa y valida los datos extraídos de cada expediente</p>
+          <h1>Expedientes</h1>
+          <p>Carga, procesa y valida los expedientes del sistema</p>
         </div>
+        <button className="btn btn-primary" onClick={() => setShowCargarModal(true)}>
+          <Upload size={16} /> Cargar cartas
+        </button>
       </div>
+
+      <CargarModal
+        open={showCargarModal}
+        onClose={() => setShowCargarModal(false)}
+        onComplete={(expId) => {
+          setShowCargarModal(false);
+          loadExpedientes();
+          if (expId) openDetail(expId);
+        }}
+      />
 
       <div className="exp-filters">
         <div className="filter-tabs">

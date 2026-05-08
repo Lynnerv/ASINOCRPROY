@@ -44,6 +44,9 @@ export const documentApi = {
   /** Iniciar procesamiento (retorna jobId) */
   startProcessing: () => api.post("/procesar/iniciar"),
 
+  /** Procesar un documento individual */
+  processOne: (docId) => api.post(`/procesar/documento/${docId}`),
+
   /** Job activo (si existe) */
   getActiveJob: () => api.get("/procesar/job/activo"),
 

@@ -12,7 +12,7 @@
   max-width: 1120px; /* La vista de detalle (imagen + formulario) es más ancha, pero heredará el centrado */
 }
 /* ── Header ── */
-.exp-header { margin-bottom: 1.25rem; }
+.exp-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 .exp-header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.4px; margin-bottom: 0.2rem; }
 .exp-header p { color: var(--color-text-secondary); font-size: 0.9rem; }
 

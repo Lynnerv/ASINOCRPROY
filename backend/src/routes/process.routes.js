@@ -37,6 +37,33 @@ function authSSE(req, res, next) {
 router.get("/estado", auth, ctrl.getStatus);
 router.get("/pendientes", auth, ctrl.getPending);
 router.post("/iniciar", auth, ctrl.startProcessing);
+
+// Procesar un documento individual (para el modal de carga rapida)
+router.post("/documento/:docId", auth, async (req, res, next) => {
+  try {
+    const docId = parseInt(req.params.docId);
+    const { query: dbQuery } = require("../config/database");
+    const { processDocument } = require("../services/process.service");
+
+    const result = await dbQuery(
+      `SELECT id, expediente_id, ruta_archivo, nombre_archivo, subido_por
+       FROM documentos WHERE id = $1`,
+      [docId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Documento no encontrado" });
+    }
+
+    const doc = result.rows[0];
+    if (!doc.subido_por) doc.subido_por = req.usuario.id;
+
+    const procesado = await processDocument(doc);
+    res.json(procesado);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/job/activo", auth, ctrl.getActiveJob);
 
 // Polling estado (auth por header)

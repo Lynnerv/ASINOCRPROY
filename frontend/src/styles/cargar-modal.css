@@ -1,0 +1,299 @@
+/* ============================================
+   CargarModal - Upload + Process flow
+   ============================================ */
+
+.cm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+.cm-modal {
+  position: relative;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  width: 95%;
+  max-width: 560px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+}
+.cm-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+  z-index: 2;
+}
+.cm-close:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+/* Steps */
+.cm-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 1.5rem 2rem 1rem;
+}
+.cm-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.35;
+  transition: opacity var(--transition);
+}
+.cm-step.active { opacity: 1; }
+.cm-step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-border);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+.cm-step.active .cm-step-num {
+  background: #6366f1;
+  color: white;
+}
+.cm-step-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.cm-step-line {
+  width: 32px;
+  height: 2px;
+  background: var(--color-border);
+  margin: 0 8px;
+}
+
+/* Body */
+.cm-body {
+  padding: 1rem 2rem 2rem;
+}
+
+/* Dropzone */
+.cm-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 2.5rem 1.5rem;
+  border: 2px dashed var(--color-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+  text-align: center;
+}
+.cm-dropzone:hover,
+.cm-dropzone.drag-over {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.04);
+}
+.cm-drop-icon {
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+.cm-dropzone:hover .cm-drop-icon,
+.cm-dropzone.drag-over .cm-drop-icon {
+  color: #6366f1;
+}
+.cm-drop-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.cm-drop-subtitle {
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+.cm-drop-formats {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+}
+
+/* Upload progress bar */
+.cm-upload-bar {
+  margin-bottom: 1rem;
+}
+.cm-upload-bar span {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+}
+.cm-progress {
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.cm-progress-fill {
+  height: 100%;
+  background: #6366f1;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* File list */
+.cm-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.cm-file-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition);
+}
+.cm-file-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+.cm-file-done .cm-file-icon { color: #22c55e; }
+.cm-file-error .cm-file-icon { color: #ef4444; }
+.cm-file-processing .cm-file-icon { color: #6366f1; }
+.cm-file-name {
+  flex: 1;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cm-file-status {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.cm-file-done .cm-file-status { color: #22c55e; }
+.cm-file-error .cm-file-status { color: #ef4444; }
+.cm-file-processing .cm-file-status { color: #6366f1; }
+
+/* Processing summary */
+.cm-processing-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  padding: 1rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #6366f1;
+}
+
+/* Error */
+.cm-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0.75rem;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  font-size: 0.82rem;
+  color: #ef4444;
+}
+
+/* Results */
+.cm-result-hero {
+  text-align: center;
+  padding: 1rem 0 1.5rem;
+}
+.cm-result-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  margin-bottom: 1rem;
+}
+.cm-result-ok {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+.cm-result-partial {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+.cm-result-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 4px;
+}
+.cm-result-text {
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+}
+.cm-result-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 1.25rem;
+}
+.cm-result-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Dark mode */
+[data-theme="dark"] .cm-dropzone:hover,
+[data-theme="dark"] .cm-dropzone.drag-over {
+  border-color: #818cf8;
+  background: rgba(129, 140, 248, 0.06);
+}
+[data-theme="dark"] .cm-result-ok {
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+}
+[data-theme="dark"] .cm-result-partial {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .cm-modal { width: 100%; max-width: 100%; border-radius: 12px 12px 0 0; margin-top: auto; }
+  .cm-body { padding: 1rem 1.25rem 1.5rem; }
+  .cm-steps { padding: 1.25rem 1.25rem 0.75rem; }
+  .cm-step-label { display: none; }
+}
