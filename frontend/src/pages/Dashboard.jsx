@@ -1,18 +1,10 @@
-/**
- * Dashboard principal (HU-03) — Diferenciado por rol.
- *
- * Administrador: estadísticas globales, gestión de usuarios, configuración.
- * Operador: bandeja de documentos, carga, procesamiento, reportes.
- * Rol no definido: mensaje "contactar al administrador".
- */
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { statsApi } from "../api/documents";
 import {
-  Upload, FolderOpen, FileText, FileCheck, Clock,
-  BarChart3, Cpu, Users, AlertTriangle, Loader,
+  FolderOpen, FileText, FileCheck, Clock,
+  BarChart3, Users, AlertTriangle, Loader,
 } from "lucide-react";
 import "../styles/dashboard.css";
 
@@ -43,7 +35,6 @@ export default function Dashboard() {
   const rol = usuario?.rol;
   const docs = stats?.documentos || {};
 
-  // ── Rol no definido ──
   if (rol !== "administrador" && rol !== "operador") {
     return (
       <div className="dashboard">
@@ -59,7 +50,6 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
-      {/* Welcome */}
       <section className="welcome-section">
         <div className="welcome-text">
           <h1>
@@ -67,19 +57,12 @@ export default function Dashboard() {
           </h1>
           <p>
             {rol === "administrador"
-              ? "Panel de administración del sistema de gestión documental."
-              : "Gestiona las cartas de notificación de Sedapal."}
+              ? "Panel de administracion del sistema de gestion documental."
+              : "Gestiona los expedientes de notificacion VMA."}
           </p>
         </div>
-        {rol === "operador" && (
-          <Link to="/cargar" className="welcome-action">
-            <Upload size={18} />
-            Cargar Cartas
-          </Link>
-        )}
       </section>
 
-      {/* Stats */}
       <section className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon stat-blue"><FileText size={20} /></div>
@@ -111,88 +94,37 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Quick actions — diferenciadas por rol */}
       <section className="actions-section">
-        <h2>Acciones rápidas</h2>
+        <h2>Acciones rapidas</h2>
         <div className="actions-grid">
-          {/* ── Administrador ── */}
+          <Link to="/expedientes" className="action-card action-card-link">
+            <div className="action-icon action-teal"><FolderOpen size={22} /></div>
+            <div className="action-body">
+              <h3>Expedientes</h3>
+              <p>Carga, procesa y valida los expedientes del sistema</p>
+            </div>
+          </Link>
+
+          <Link to="/estadisticas" className="action-card action-card-link">
+            <div className="action-icon action-violet"><BarChart3 size={22} /></div>
+            <div className="action-body">
+              <h3>Estadisticas y Reportes</h3>
+              <p>Resumen del estado general y exportacion de datos</p>
+            </div>
+          </Link>
+
           {rol === "administrador" && (
-            <>
-              <Link to="/usuarios" className="action-card action-card-link">
-                <div className="action-icon action-indigo"><Users size={22} /></div>
-                <div className="action-body">
-                  <h3>Gestión de Usuarios</h3>
-                  <p>Administrar cuentas, roles y permisos del sistema</p>
-                </div>
-              </Link>
-
-              <Link to="/procesar" className="action-card action-card-link">
-                <div className="action-icon action-cyan"><Cpu size={22} /></div>
-                <div className="action-body">
-                  <h3>Procesar Contenido</h3>
-                  <p>Supervisar extracción OCR + IA de documentos</p>
-                </div>
-              </Link>
-
-              <Link to="/cargar" className="action-card action-card-link">
-                <div className="action-icon action-blue"><Upload size={22} /></div>
-                <div className="action-body">
-                  <h3>Cargar Cartas</h3>
-                  <p>Subir imágenes JPG o PNG para procesamiento</p>
-                </div>
-              </Link>
-
-              <Link to="/expedientes" className="action-card action-card-link">
-                <div className="action-icon action-teal"><FolderOpen size={22} /></div>
-                <div className="action-body">
-                  <h3>Expedientes</h3>
-                  <p>Revisar expedientes procesados y datos extraídos</p>
-                </div>
-              </Link>
-            </>
-          )}
-
-          {/* ── Operador ── */}
-          {rol === "operador" && (
-            <>
-              <Link to="/cargar" className="action-card action-card-link">
-                <div className="action-icon action-blue"><Upload size={22} /></div>
-                <div className="action-body">
-                  <h3>Cargar Cartas</h3>
-                  <p>Subir imágenes JPG o PNG para extracción automática</p>
-                </div>
-              </Link>
-
-              <Link to="/procesar" className="action-card action-card-link">
-                <div className="action-icon action-cyan"><Cpu size={22} /></div>
-                <div className="action-body">
-                  <h3>Procesar Contenido</h3>
-                  <p>Extraer datos de cartas pendientes con OCR + IA</p>
-                </div>
-              </Link>
-
-              <Link to="/expedientes" className="action-card action-card-link">
-                <div className="action-icon action-teal"><FolderOpen size={22} /></div>
-                <div className="action-body">
-                  <h3>Expedientes</h3>
-                  <p>Revisar expedientes procesados y datos extraídos</p>
-                </div>
-              </Link>
-
-              <div className="action-card action-card-disabled">
-                <div className="action-icon action-violet"><FileText size={22} /></div>
-                <div className="action-body">
-                  <h3>Reportes</h3>
-                  <p>Generar reportes y borradores de cartas poder</p>
-                  <span className="action-badge">Próximamente</span>
-                </div>
+            <Link to="/usuarios" className="action-card action-card-link">
+              <div className="action-icon action-indigo"><Users size={22} /></div>
+              <div className="action-body">
+                <h3>Gestion de Usuarios</h3>
+                <p>Administrar cuentas, roles y permisos del sistema</p>
               </div>
-            </>
+            </Link>
           )}
         </div>
       </section>
 
-      {/* Recent documents */}
       {recent.length > 0 && (
         <section className="recent-section">
           <h2>Documentos recientes</h2>
@@ -212,12 +144,14 @@ export default function Dashboard() {
                   <tr key={doc.id}>
                     <td className="rt-name">{doc.nombre_archivo}</td>
                     <td className="rt-client">
-                      {doc.nis ? `${doc.nis} - ${doc.cliente}` : "—"}
+                      {doc.nis ? `${doc.nis} - ${doc.cliente}` : "\u2014"}
                     </td>
                     <td>
                       {doc.anexo ? (
-                        <span className="rt-anexo">{doc.anexo}</span>
-                      ) : "—"}
+                        <span className={`rt-anexo ${doc.anexo === "Anexo 1" ? "anexo-1" : "anexo-2"}`}>
+                          {doc.anexo.replace("Anexo ", "")}
+                        </span>
+                      ) : "\u2014"}
                     </td>
                     <td>
                       <span className={`rt-status st-${doc.estado}`}>

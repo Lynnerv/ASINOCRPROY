@@ -308,6 +308,7 @@ async function getExpedienteDetail(expedienteId) {
   // Expediente + cliente
   const expResult = await query(
     `SELECT e.id, e.estado, e.observaciones, e.creado_en, e.actualizado_en,
+            e.precio_servicio, e.fecha_programacion,
             c.id AS cliente_id, c.nis, c.nia, c.nombre AS cliente,
             c.direccion, c.distrito
      FROM expedientes e

@@ -180,3 +180,15 @@
 [data-theme="dark"] .nt-card.unread {
   background: rgba(99,102,241,0.06);
 }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .nt-page { padding: 0; }
+  .nt-tabs { flex-wrap: wrap; gap: 6px; }
+  .nt-card { padding: 0.75rem; }
+  .nt-card-left { gap: 8px; }
+}
+@media (max-width: 480px) {
+  .nt-card-msg { font-size: 0.78rem; }
+  .nt-card-date { font-size: 0.68rem; }
+}

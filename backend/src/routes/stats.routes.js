@@ -35,4 +35,20 @@ router.get("/usuarios", auth, authorize("administrador"), async (req, res, next)
   } catch (err) { next(err); }
 });
 
+router.get("/reportes", auth, async (req, res, next) => {
+  try {
+    const { desde, hasta } = req.query;
+    const data = await statsService.getReporteEstadisticas(desde || null, hasta || null);
+    res.json(data);
+  } catch (err) { next(err); }
+});
+
+router.get("/exportar", auth, async (req, res, next) => {
+  try {
+    const { desde, hasta } = req.query;
+    const rows = await statsService.getExportData(desde || null, hasta || null);
+    res.json({ expedientes: rows });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

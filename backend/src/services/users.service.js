@@ -58,4 +58,67 @@ async function resetPassword(id, newPassword) {
   );
 }
 
-module.exports = { listUsers, createUser, updateUser, resetPassword };
+module.exports = { listUsers, createUser, updateUser, resetPassword, getProfile, updateProfile, changePassword };
+
+async function getProfile(userId) {
+  const result = await query(
+    `SELECT id, nombre, correo, rol, activo, ultimo_acceso, creado_en
+     FROM usuarios WHERE id = $1`,
+    [userId]
+  );
+  if (result.rows.length === 0) {
+    throw Object.assign(new Error("Usuario no encontrado"), { status: 404 });
+  }
+  return result.rows[0];
+}
+
+async function updateProfile(userId, { nombre, correo }) {
+  if (correo) {
+    const existing = await query(
+      "SELECT id FROM usuarios WHERE correo = $1 AND id != $2",
+      [correo, userId]
+    );
+    if (existing.rows.length > 0) {
+      throw Object.assign(new Error("Ya existe otro usuario con ese correo"), { status: 409 });
+    }
+  }
+
+  const result = await query(
+    `UPDATE usuarios SET
+       nombre = COALESCE($2, nombre),
+       correo = COALESCE($3, correo),
+       actualizado_en = NOW()
+     WHERE id = $1
+     RETURNING id, nombre, correo, rol`,
+    [userId, nombre || null, correo || null]
+  );
+  if (result.rows.length === 0) {
+    throw Object.assign(new Error("Usuario no encontrado"), { status: 404 });
+  }
+  return result.rows[0];
+}
+
+async function changePassword(userId, currentPassword, newPassword) {
+  const result = await query(
+    "SELECT password_hash FROM usuarios WHERE id = $1",
+    [userId]
+  );
+  if (result.rows.length === 0) {
+    throw Object.assign(new Error("Usuario no encontrado"), { status: 404 });
+  }
+
+  const valid = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
+  if (!valid) {
+    throw Object.assign(new Error("La contrasena actual es incorrecta"), { status: 400 });
+  }
+
+  if (newPassword.length < 6) {
+    throw Object.assign(new Error("La nueva contrasena debe tener al menos 6 caracteres"), { status: 400 });
+  }
+
+  const hash = await bcrypt.hash(newPassword, 10);
+  await query(
+    "UPDATE usuarios SET password_hash = $2, actualizado_en = NOW() WHERE id = $1",
+    [userId, hash]
+  );
+}

@@ -14,12 +14,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { expedienteApi } from "../api/documents";
+import { servicioApi } from "../api/prepararServicio";
 import CargarModal from "../components/CargarModal";
+import ServicioDrawer from "../components/ServicioDrawer";
 import {
-  Search, X, ChevronLeft, ChevronRight, FileText, Upload,
-  Loader, Eye, EyeOff, ZoomIn, FolderOpen, Files,
-  Save, CheckCircle, RotateCcw, Lock, AlertCircle,
-  FolderPlus,
+  Search, X, ChevronLeft, ChevronRight, FileText, Upload, Download,
+  Loader, Eye, EyeOff, ZoomIn, FolderOpen,
+  CheckCircle, RotateCcw, Lock, AlertCircle, Pencil,
   Camera, ArrowRight,
 } from "lucide-react";
 import "../styles/expedientes.css";
@@ -65,6 +66,8 @@ export default function ExpedientesPage() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [hideConfirm, setHideConfirm] = useState(null);
   const [showCargarModal, setShowCargarModal] = useState(false);
+  const [downloading, setDownloading] = useState(null);
+  const [showServicioDrawer, setShowServicioDrawer] = useState(false);
 
   const LIMIT = 15;
 
@@ -189,6 +192,32 @@ export default function ExpedientesPage() {
     }
   }
 
+  async function handleDownloadDoc(tipo) {
+    if (!detail) return;
+    setDownloading(tipo);
+    try {
+      const response = tipo === "proforma"
+        ? await servicioApi.generarProforma(detail.id)
+        : await servicioApi.generarProgramacion(detail.id);
+
+      const blob = new Blob([response.data], {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${tipo}_${detail.nis || detail.id}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setToast({ type: "error", message: err.response?.data?.error || `Error al generar ${tipo}` });
+    } finally {
+      setDownloading(null);
+    }
+  }
+
   function formatDate(dateStr) {
     if (!dateStr) return "—";
     return new Date(dateStr).toLocaleDateString("es-PE", {
@@ -278,12 +307,6 @@ export default function ExpedientesPage() {
       await expedienteApi.updateDocFields(doc.id, editForm, parametros);
       const { data } = await expedienteApi.validateDoc(doc.id);
       await reloadDetail();
-      setToast({
-        type: "success",
-        message: data.expediente_completo
-          ? "Registro validado. Todos los documentos del expediente están completos."
-          : "Registro validado con éxito",
-      });
     } catch (err) {
       const msg = err.response?.data?.error || "Error al validar";
       setToast({ type: "error", message: msg });
@@ -299,7 +322,6 @@ export default function ExpedientesPage() {
     try {
       await expedienteApi.markPending(doc.id);
       await reloadDetail();
-      setToast({ type: "success", message: "Documento desbloqueado para edición" });
     } catch (err) {
       const msg = err.response?.data?.error || "Error al marcar como pendiente";
       setToast({ type: "error", message: msg });
@@ -312,7 +334,6 @@ export default function ExpedientesPage() {
   if (detail) {
     const docs = detail.documentos || [];
     const activeDoc = docs[activeDocIndex] || null;
-    const extraction = getExtractionSummary(docs);
     const isLocked = activeDoc?.estado === "validado";
 
     return (
@@ -357,107 +378,94 @@ export default function ExpedientesPage() {
             </div>
           </div>
 
-          <div className="hero-extraction">
-            <span className="extraction-label">Resumen de extracción</span>
-            <div className="extraction-number-row">
-              <span className="extraction-number">{extraction.totalParams}</span>
-              <span className="extraction-text">parámetros extraídos</span>
-            </div>
-            <div className="extraction-bar">
-              <div className="extraction-bar-fill"
-                style={{ width: `${extraction.camposTotales > 0 ? (extraction.camposExtraidos / extraction.camposTotales) * 100 : 0}%` }}
-              ></div>
-            </div>
-            <div className="extraction-details">
-              <span className="ext-detail-value">
-                {extraction.camposExtraidos} de {extraction.camposTotales} campos completados
-              </span>
-            </div>
-            <div className="extraction-counters">
-              <div className="ext-counter red">
-                <span className="ext-counter-num">{extraction.excedidos}</span>
-                <span className="ext-counter-label">superan VMA</span>
+          <div className="hero-workflow">
+            <span className="workflow-label">Progreso del expediente</span>
+            <div className="wf-checklist">
+              <div className={`wf-check-item ${detail.estado !== "procesado" && detail.estado !== "en_revision" ? "wf-item-done" : "wf-item-active"}`}>
+                <div className="wf-check-dot">
+                  {detail.estado !== "procesado" && detail.estado !== "en_revision" ? <CheckCircle size={15} /> : <span className="wf-num">1</span>}
+                </div>
+                <span>Validacion de datos</span>
               </div>
-              <div className="ext-counter green">
-                <span className="ext-counter-num">{extraction.conformes}</span>
-                <span className="ext-counter-label">dentro de VMA</span>
-              </div>
+              {["completo", "servicio_programado", "evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado) ? (
+                <div onClick={() => setShowServicioDrawer(true)} className={`wf-check-item wf-check-link ${detail.precio_servicio && detail.fecha_programacion ? "wf-item-done" : "wf-item-pending"}`}>
+                  <div className="wf-check-dot">
+                    {detail.precio_servicio && detail.fecha_programacion ? <CheckCircle size={15} /> : <span className="wf-num">2</span>}
+                  </div>
+                  <span>Preparar servicio</span>
+                  {detail.precio_servicio && (
+                    <span className="wf-check-meta">S/.{detail.precio_servicio} <Pencil size={11} /></span>
+                  )}
+                </div>
+              ) : (
+                <div className="wf-check-item wf-item-locked">
+                  <div className="wf-check-dot"><span className="wf-num">2</span></div>
+                  <span>Preparar servicio</span>
+                </div>
+              )}
+              {["completo", "servicio_programado", "evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado) ? (
+                <Link to={`/expedientes/${detail.id}/evidencias`} className={`wf-check-item wf-check-link ${["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado) ? "wf-item-done" : "wf-item-pending"}`}>
+                  <div className="wf-check-dot">
+                    {["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado) ? <CheckCircle size={15} /> : <span className="wf-num">3</span>}
+                  </div>
+                  <span>Completar evidencias</span>
+                </Link>
+              ) : (
+                <div className="wf-check-item wf-item-locked">
+                  <div className="wf-check-dot"><span className="wf-num">3</span></div>
+                  <span>Completar evidencias</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* CTA: Preparar servicio (HU-16) */}
-        {["completo", "servicio_programado", "evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado) && (
-          <Link to={`/expedientes/${detail.id}/servicio`} className="evid-cta">
-            <div className="evid-cta-icon">
-              <FileText size={20} />
+        {/* Hub de Documentos */}
+        {!["procesado", "en_revision"].includes(detail.estado) && (
+          <div className="doc-hub">
+            <div className="doc-hub-header">
+              <span className="doc-hub-title">Documentos generados</span>
             </div>
-            <div className="evid-cta-text">
-              <div className="evid-cta-title">
-                {detail.precio_servicio || detail.fecha_programacion
-                  ? "Editar datos del servicio"
-                  : "Preparar servicio (proforma y programacion)"}
-              </div>
-              <div className="evid-cta-subtitle">
-                {detail.precio_servicio || detail.fecha_programacion
-                  ? `Precio: S/.${detail.precio_servicio || "--"} | Fecha: ${detail.fecha_programacion?.split("T")[0] || "--"}`
-                  : "Registra el precio y fecha para generar la proforma y carta de programacion"}
-              </div>
-            </div>
-            <div className="evid-cta-arrow">
-              <ArrowRight size={18} />
-            </div>
-          </Link>
-        )}
 
-        {/* CTA: Completar evidencias (HU-11) */}
-        {["completo", "servicio_programado", "evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado) && (
-          <Link to={`/expedientes/${detail.id}/evidencias`} className="evid-cta">
-            <div className="evid-cta-icon">
-              <FolderPlus size={20} />
-            </div>
-            <div className="evid-cta-text">
-              <div className="evid-cta-title">
-                {detail.estado === "completo"
-                  ? "Completar evidencias del expediente"
-                  : "Editar evidencias del expediente"}
-              </div>
-              <div className="evid-cta-subtitle">
-                {detail.estado === "completo"
-                  ? "Adjunta fotos, informe de laboratorio y N° de factura para continuar"
-                  : "Reemplaza archivos o corrige el N° de factura"}
+            <div className="doc-hub-group">
+              <span className="doc-hub-group-label">Servicio</span>
+              <div className="doc-hub-grid">
+                <DocItem name="Proforma" ready={!!detail.precio_servicio} step="2"
+                  loading={downloading === "proforma"} onDownload={() => handleDownloadDoc("proforma")} />
+                <DocItem name="Carta de Programacion" ready={!!detail.fecha_programacion} step="2"
+                  loading={downloading === "programacion"} onDownload={() => handleDownloadDoc("programacion")} />
               </div>
             </div>
-            <div className="evid-cta-arrow">
-              <ArrowRight size={18} />
+
+            <div className="doc-hub-group">
+              <span className="doc-hub-group-label">Expediente final</span>
+              <div className="doc-hub-grid">
+                {["Certificado", "Informe Tecnico", "Levantamiento", "Ficha Tecnica", "Reporte Fotografico Inoculacion", "Reporte Fotografico Monitoreo"].map((name) => (
+                  <DocItem key={name} name={name}
+                    ready={["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado)}
+                    step="3" />
+                ))}
+              </div>
             </div>
-          </Link>
+          </div>
         )}
 
         {/* ── TABS SIMPLIFICADOS EN JSX ── */}
         {docs.length > 0 && (
           <div className="det-tabs">
-            {docs.map((doc, i) => {
-              const excCount = (doc.parametros_vma || [])
-                .filter((p) => checkExcede(p.resultado_valor, p.vma_normado)).length;
-              return (
-                <button key={doc.id}
-                  className={`det-tab ${i === activeDocIndex ? "active" : ""}`}
-                  onClick={() => setActiveDocIndex(i)}
-                >
-                  <span className="tab-name">{doc.anexo || `Documento ${i + 1}`}</span>
-                  
-                  {/* USANDO ICONOS DE LUCIDE-REACT EN VEZ DE EMOJIS */}
-                  {doc.estado === "validado" ? (
-                    <CheckCircle size={14} className="tab-icon-validado" />
-                  ) : (
-                    <AlertCircle size={14} className="tab-icon-pendiente" />
-                  )}
-
-                  {excCount > 0 && <span className="tab-dot-alert" title="Supera VMA"></span>}
-                </button>
-              );
-            })}
+            {docs.map((doc, i) => (
+              <button key={doc.id}
+                className={`det-tab ${i === activeDocIndex ? "active" : ""}`}
+                onClick={() => setActiveDocIndex(i)}
+              >
+                <span className="tab-name">{doc.anexo || `Documento ${i + 1}`}</span>
+                {doc.estado === "validado" ? (
+                  <CheckCircle size={14} className="tab-icon-validado" />
+                ) : (
+                  <AlertCircle size={14} className="tab-icon-pendiente" />
+                )}
+              </button>
+            ))}
           </div>
         )}
 
@@ -468,28 +476,39 @@ export default function ExpedientesPage() {
               <>
                 <div className="action-bar-status">
                   <Lock size={14} />
-                  <span>Documento validado — edición bloqueada</span>
+                  <span>Documento validado</span>
                 </div>
-                <button className="btn btn-outline" onClick={handleMarkPending}>
-                  <RotateCcw size={14} /> Desbloquear edición
-                </button>
+                <div className="action-bar-buttons">
+                  {(() => {
+                    const hasService = detail.precio_servicio && detail.fecha_programacion;
+                    const hasEvidencias = ["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado);
+                    if (["completo", "servicio_programado"].includes(detail.estado) && !hasService) return (
+                      <button className="btn btn-primary" onClick={() => setShowServicioDrawer(true)}>
+                        Continuar a Servicio <ArrowRight size={14} />
+                      </button>
+                    );
+                    if (["completo", "servicio_programado"].includes(detail.estado) && hasService && !hasEvidencias) return (
+                      <Link to={`/expedientes/${detail.id}/evidencias`} className="btn btn-primary">
+                        Continuar a Evidencias <ArrowRight size={14} />
+                      </Link>
+                    );
+                    return null;
+                  })()}
+                  <button className="btn btn-outline btn-sm" onClick={handleMarkPending}>
+                    <RotateCcw size={14} /> Desbloquear
+                  </button>
+                </div>
               </>
             ) : (
               <>
                 <div className="action-bar-status">
                   <AlertCircle size={14} />
-                  <span>Pendiente de validación</span>
+                  <span>Pendiente de validacion</span>
                 </div>
-                <div className="action-bar-buttons">
-                  <button className="btn btn-secondary" onClick={handleSave} disabled={saving}>
-                    {saving ? <Loader size={14} className="spin" /> : <Save size={14} />}
-                    Guardar correcciones
-                  </button>
-                  <button className="btn btn-primary" onClick={handleValidate} disabled={validating}>
-                    {validating ? <Loader size={14} className="spin" /> : <CheckCircle size={14} />}
-                    Validar registro
-                  </button>
-                </div>
+                <button className="btn btn-primary" onClick={handleValidate} disabled={validating}>
+                  {validating ? <Loader size={14} className="spin" /> : <CheckCircle size={14} />}
+                  Validar registro
+                </button>
               </>
             )}
           </div>
@@ -575,45 +594,34 @@ export default function ExpedientesPage() {
                     <table className="vma-table">
                       <thead>
                         <tr>
-                          <th className="col-code">Cód.</th>
-                          <th>Parámetro</th>
+                          <th className="col-code">Cod.</th>
+                          <th>Parametro</th>
                           <th className="col-num">Valor</th>
                           <th className="col-num">VMA ref.</th>
                           <th className="col-unit">Und.</th>
-                          <th className="col-status">Estado</th>
                         </tr>
                       </thead>
                       <tbody>
                         {activeDoc.parametros_vma.map((p) => {
                           const val = paramEdits[p.resultado_id] ?? p.resultado_valor ?? "";
-                          const excede = checkExcede(val, p.vma_normado);
                           return (
-                            <tr key={p.resultado_id} className={excede ? "row-exceed" : "row-ok"}>
+                            <tr key={p.resultado_id}>
                               <td className="cell-code">{p.codigo}</td>
                               <td className="cell-param">{p.nombre_completo}</td>
                               <td className="cell-result">
                                 {isLocked ? (
-                                  <span className={excede ? "val-exceed" : "val-ok"}>{val || "—"}</span>
+                                  <span>{val || "\u2014"}</span>
                                 ) : (
                                   <input
                                     type="text"
-                                    className={`param-input ${excede ? "param-input-exceed" : ""}`}
+                                    className="param-input"
                                     value={val}
                                     onChange={(e) => updateParam(p.resultado_id, e.target.value)}
                                   />
                                 )}
                               </td>
-                              <td className="cell-vma">{p.vma_normado ?? "—"}</td>
+                              <td className="cell-vma">{p.vma_normado ?? "\u2014"}</td>
                               <td className="cell-unit">{p.unidad}</td>
-                              <td className="cell-status">
-                                {val ? (
-                                  <span className={`vma-pill ${excede ? "pill-exceed" : "pill-ok"}`}>
-                                    {excede ? "Supera" : "Dentro"}
-                                  </span>
-                                ) : (
-                                  <span className="vma-pill pill-empty">—</span>
-                                )}
-                              </td>
                             </tr>
                           );
                         })}
@@ -654,6 +662,18 @@ export default function ExpedientesPage() {
             </div>
           </div>
         )}
+
+        <ServicioDrawer
+          open={showServicioDrawer}
+          expedienteId={detail.id}
+          currentPrecio={detail.precio_servicio}
+          currentFecha={detail.fecha_programacion}
+          onClose={() => setShowServicioDrawer(false)}
+          onSaved={() => {
+            setShowServicioDrawer(false);
+            reloadDetail();
+          }}
+        />
       </div>
     );
   }
@@ -718,7 +738,7 @@ export default function ExpedientesPage() {
           <table className="exp-table">
             <thead>
               <tr>
-                <th>N° Exp.</th><th>NIS</th><th>Cliente</th><th>Fecha</th><th>Documentos</th><th>Anexos</th><th>Estado</th><th></th>
+                <th>N° Exp.</th><th>NIS</th><th>Cliente</th><th>Fecha</th><th>Anexos</th><th>Estado</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -730,9 +750,8 @@ export default function ExpedientesPage() {
                     <td className="td-nis">{exp.nis || "—"}</td>
                     <td className="td-cliente">{exp.cliente || "Sin asignar"}</td>
                     <td className="td-date">{formatDate(exp.fecha_mas_reciente || exp.creado_en)}</td>
-                    <td><span className="docs-count"><Files size={13} /> {exp.num_documentos}</span></td>
                     <td className="td-anexos">
-                      {exp.anexos?.length > 0 ? exp.anexos.map((a) => (<span key={a} className="badge-anexo">{a}</span>)) : "—"}
+                      {exp.anexos?.length > 0 ? exp.anexos.map((a) => (<span key={a} className={`badge-anexo ${a === "Anexo 1" ? "anexo-1" : "anexo-2"}`}>{a.replace("Anexo ", "")}</span>)) : "—"}
                     </td>
                     <td><span className={`badge st-${est}`}>{est}</span></td>
                     <td className="td-actions">
@@ -791,6 +810,25 @@ export default function ExpedientesPage() {
 //  Components
 // ══════════════════════════════════════════
 
+function DocItem({ name, ready, step, loading, onDownload }) {
+  return (
+    <div className={`doc-hub-item ${ready ? "doc-ready" : "doc-pending"}`}>
+      <FileText size={15} className="doc-hub-icon" />
+      <span className="doc-hub-name">{name}</span>
+      {ready && onDownload ? (
+        <>
+          <span className="doc-hub-badge doc-badge-ready">Listo</span>
+          <button className="doc-hub-dl" onClick={onDownload} disabled={loading}>
+            {loading ? <Loader size={13} className="spin" /> : <Download size={13} />}
+          </button>
+        </>
+      ) : (
+        <span className="doc-hub-badge doc-badge-pending">Paso {step}</span>
+      )}
+    </div>
+  );
+}
+
 function EditField({ label, field, type, value, onChange, locked, required, error, options }) {
   const labelText = `${label}${required ? " *" : ""}`;
 
@@ -827,31 +865,3 @@ function EditField({ label, field, type, value, onChange, locked, required, erro
 // ══════════════════════════════════════════
 //  Helpers
 // ══════════════════════════════════════════
-
-function checkExcede(resultado, vma) {
-  if (resultado == null || !vma) return false;
-  const val = parseFloat(resultado);
-  if (isNaN(val)) return false;
-  if (String(vma).includes("-")) {
-    const [min, max] = String(vma).split("-").map(Number);
-    return val < min || val > max;
-  }
-  return val > parseFloat(vma);
-}
-
-function getExtractionSummary(documentos) {
-  const camposBase = ["numero_carta", "fecha_carta", "numero_acta", "fecha_muestra", "numero_informe"];
-  let camposExtraidos = 0, camposTotales = 0, totalParams = 0, excedidos = 0, conformes = 0;
-
-  for (const doc of documentos) {
-    camposTotales += camposBase.length;
-    camposExtraidos += camposBase.filter((c) => doc[c]).length;
-    for (const p of (doc.parametros_vma || [])) {
-      totalParams++;
-      if (checkExcede(p.resultado_valor, p.vma_normado)) excedidos++;
-      else if (p.resultado_valor != null) conformes++;
-    }
-  }
-
-  return { totalParams, camposExtraidos, camposTotales, excedidos, conformes };
-}

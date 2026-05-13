@@ -10,7 +10,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { LogOut, User, Moon, Sun, AlertTriangle } from "lucide-react";
+import { LogOut, User, Moon, Sun, AlertTriangle, Menu, X } from "lucide-react";
 import Bell from "./Bell";
 import "../styles/layout.css";
 
@@ -23,6 +23,7 @@ function getNavItems(rol) {
   const common = [
     { to: "/", label: "Inicio" },
     { to: "/expedientes", label: "Expedientes" },
+    { to: "/estadisticas", label: "Estadisticas" },
   ];
 
   if (rol === "administrador") {
@@ -50,6 +51,7 @@ export default function Layout({ children }) {
 
   const [theme, setTheme] = useState(getInitialTheme);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [mobileMenu, setMobileMenu] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -65,6 +67,8 @@ export default function Layout({ children }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [showLogoutModal]);
+
+  useEffect(() => { setMobileMenu(false); }, [location.pathname]);
 
   function toggleTheme() {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
@@ -82,6 +86,11 @@ export default function Layout({ children }) {
       <header className="app-header">
         <div className="header-inner">
           <div className="header-left">
+            {usuario && (
+              <button className="hamburger-btn" onClick={() => setMobileMenu(!mobileMenu)}>
+                {mobileMenu ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            )}
             <Link to="/" className="header-logo">
               <img src="/logo.png" alt="Asin Solutions" className="logo-img" />
               <span className="logo-text">ASIN SOLUTIONS</span>
@@ -122,7 +131,7 @@ export default function Layout({ children }) {
             {usuario ? (
               <>
                 <Bell />
-                <div className="header-user">
+                <Link to="/perfil" className="header-user header-user-link">
                   <div className="user-avatar">
                     <User size={14} />
                   </div>
@@ -130,7 +139,7 @@ export default function Layout({ children }) {
                     <span className="user-name">{usuario.nombre}</span>
                     <span className="user-role">{usuario.rol}</span>
                   </div>
-                </div>
+                </Link>
                 <button className="logout-btn" onClick={() => setShowLogoutModal(true)} title="Cerrar sesión">
                   <LogOut size={15} />
                 </button>
@@ -143,6 +152,50 @@ export default function Layout({ children }) {
           </div>
         </div>
       </header>
+
+      {/* Mobile drawer */}
+      {mobileMenu && usuario && (
+        <>
+          <div className="mobile-overlay" onClick={() => setMobileMenu(false)}></div>
+          <nav className="mobile-drawer">
+            <div className="mobile-drawer-header">
+              <div className="mobile-user-info">
+                <div className="user-avatar"><User size={14} /></div>
+                <div>
+                  <span className="mobile-user-name">{usuario.nombre}</span>
+                  <span className="mobile-user-role">{usuario.rol}</span>
+                </div>
+              </div>
+            </div>
+            <div className="mobile-drawer-links">
+              {navItems.map((item) => {
+                const isActive = location.pathname === item.to;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={`mobile-link ${isActive ? "mobile-link-active" : ""}`}
+                    onClick={() => setMobileMenu(false)}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+              <Link to="/perfil" className={`mobile-link ${location.pathname === "/perfil" ? "mobile-link-active" : ""}`} onClick={() => setMobileMenu(false)}>
+                Mi perfil
+              </Link>
+              <Link to="/notificaciones" className="mobile-link" onClick={() => setMobileMenu(false)}>
+                Notificaciones
+              </Link>
+            </div>
+            <div className="mobile-drawer-footer">
+              <button className="mobile-logout" onClick={() => { setMobileMenu(false); setShowLogoutModal(true); }}>
+                <LogOut size={16} /> Cerrar sesion
+              </button>
+            </div>
+          </nav>
+        </>
+      )}
 
       {/* ---- Main Content ---- */}
       <main className="app-main">

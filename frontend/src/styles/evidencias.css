@@ -4,8 +4,7 @@
 
 .evid-page {
   max-width: 1000px;
-  margin: 0 auto;  /* Alineación central */
-  padding: 0 1rem; /* Margen de seguridad para móviles/tablets */
+  margin: 0 auto;
 }
 
 .evid-loading {

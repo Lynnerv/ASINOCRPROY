@@ -85,6 +85,8 @@ export const statsApi = {
   getGlobal: () => api.get("/stats"),
   getRecent: (limit = 10) => api.get("/stats/recientes", { params: { limit } }),
   getUserStats: () => api.get("/stats/usuarios"),
+  getReportes: (desde, hasta) => api.get("/stats/reportes", { params: { desde, hasta } }),
+  getExportData: (desde, hasta) => api.get("/stats/exportar", { params: { desde, hasta } }),
 };
 
 export const usersApi = {
@@ -93,4 +95,8 @@ export const usersApi = {
   update: (id, data) => api.put(`/usuarios/${id}`, data),
   resetPassword: (id, password) =>
     api.patch(`/usuarios/${id}/password`, { password }),
+
+  getProfile: () => api.get("/usuarios/perfil"),
+  updateProfile: (data) => api.patch("/usuarios/perfil", data),
+  changePassword: (data) => api.patch("/usuarios/perfil/password", data),
 };

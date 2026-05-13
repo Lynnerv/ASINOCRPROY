@@ -239,7 +239,7 @@ export default function CompletarEvidencias() {
       await evidenciasApi.updateFactura(id, numeroFactura);
       await evidenciasApi.guardar(id);
       setToast({ type: "success", message: "Evidencias guardadas correctamente" });
-      setTimeout(() => navigate("/expedientes"), 1500);
+      setTimeout(() => navigate(`/expedientes?open=${id}`), 1500);
     } catch (err) {
       const msg = err.response?.data?.error || "Error al guardar evidencias";
       setToast({ type: "error", message: msg });

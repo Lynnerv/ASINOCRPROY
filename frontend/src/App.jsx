@@ -11,6 +11,8 @@ import UsersPage from "./pages/Users";
 import Notifications from "./pages/Notifications";
 import EvidenciasPage from "./pages/CompletarEvidencias";
 import PrepararServicioPage from "./pages/PrepararServicio";
+import Estadisticas from "./pages/Estadisticas";
+import Perfil from "./pages/Perfil";
 import Legal from "./pages/Legal";
 
 export default function App() {
@@ -27,6 +29,8 @@ export default function App() {
           <Route path="/expedientes/:id/evidencias" element={<ProtectedRoute><Layout><EvidenciasPage /></Layout></ProtectedRoute>} />
           <Route path="/expedientes/:id/servicio" element={<ProtectedRoute><Layout><PrepararServicioPage /></Layout></ProtectedRoute>} />
           <Route path="/notificaciones" element={<ProtectedRoute><Layout><Notifications /></Layout></ProtectedRoute>} />
+          <Route path="/estadisticas" element={<ProtectedRoute><Layout><Estadisticas /></Layout></ProtectedRoute>} />
+          <Route path="/perfil" element={<ProtectedRoute><Layout><Perfil /></Layout></ProtectedRoute>} />
           <Route path="/usuarios" element={<ProtectedRoute roles={["administrador"]}><Layout><UsersPage /></Layout></ProtectedRoute>} />
 
           {/* Rutas antiguas redireccionadas */}

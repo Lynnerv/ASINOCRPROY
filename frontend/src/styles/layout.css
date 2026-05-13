@@ -55,6 +55,7 @@
 .header-left {
   display: flex;
   align-items: center;
+  gap: 12px;
 }
 
 /* Navigation */
@@ -106,6 +107,14 @@
   background: var(--color-bg);
   border-radius: 20px;
   border: 1px solid var(--color-border);
+}
+.header-user-link {
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+.header-user-link:hover {
+  border-color: var(--color-primary);
 }
 
 .user-avatar {
@@ -230,25 +239,144 @@
 }
 
 /* ---- Responsive ---- */
+
+.hamburger-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.hamburger-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 998;
+  backdrop-filter: blur(2px);
+}
+
+.mobile-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  animation: slideIn 0.2s ease;
+}
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+.mobile-drawer-header {
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.mobile-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mobile-user-name {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.mobile-user-role {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.mobile-drawer-links {
+  flex: 1;
+  padding: 0.75rem 0;
+  overflow-y: auto;
+}
+.mobile-link {
+  display: block;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  transition: all var(--transition);
+}
+.mobile-link:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text);
+}
+.mobile-link-active {
+  color: var(--color-primary);
+  font-weight: 700;
+  background: rgba(99, 102, 241, 0.06);
+  border-right: 3px solid var(--color-primary);
+}
+
+.mobile-drawer-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+.mobile-logout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.mobile-logout:hover {
+  background: rgba(239, 68, 68, 0.06);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
 @media (max-width: 840px) {
-  .header-inner {
-    padding: 0 1rem;
-  }
-
-  .header-nav {
-    display: none;
-  }
-
-  .main-inner {
-    padding: 1.5rem 1rem;
-  }
-
+  .hamburger-btn { display: flex; }
+  .header-nav { display: none; }
+  .header-inner { padding: 0 1rem; }
+  .main-inner { padding: 1.25rem 1rem; }
+  .header-user .user-info { display: none; }
+  .logo-text { font-size: 0.82rem; }
   .footer-inner {
     flex-direction: column;
     gap: 4px;
     text-align: center;
     padding: 0.85rem 1rem;
   }
+}
+
+@media (max-width: 480px) {
+  .logo-text { display: none; }
+  .main-inner { padding: 1rem 0.75rem; }
 }
 
 /* ═══════════════════════════════
@@ -401,4 +529,12 @@
 @keyframes modalPop {
   from { opacity: 0; transform: scale(0.95) translateY(-8px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Dark mode - mobile drawer */
+[data-theme="dark"] .mobile-overlay { background: rgba(0, 0, 0, 0.6); }
+[data-theme="dark"] .mobile-drawer { box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4); }
+[data-theme="dark"] .mobile-link-active {
+  background: rgba(129, 140, 248, 0.08);
+  border-right-color: #818cf8;
 }

@@ -14,7 +14,34 @@ const usersService = require("../services/users.service");
 
 const router = Router();
 
-// Todas las rutas requieren admin
+// Rutas de perfil (cualquier usuario autenticado)
+router.get("/perfil", auth, async (req, res, next) => {
+  try {
+    const profile = await usersService.getProfile(req.usuario.id);
+    res.json({ usuario: profile });
+  } catch (err) { next(err); }
+});
+
+router.patch("/perfil", auth, async (req, res, next) => {
+  try {
+    const { nombre, correo } = req.body;
+    const updated = await usersService.updateProfile(req.usuario.id, { nombre, correo });
+    res.json({ usuario: updated });
+  } catch (err) { next(err); }
+});
+
+router.patch("/perfil/password", auth, async (req, res, next) => {
+  try {
+    const { password_actual, password_nueva } = req.body;
+    if (!password_actual || !password_nueva) {
+      return res.status(400).json({ error: "Ambas contrasenas son requeridas" });
+    }
+    await usersService.changePassword(req.usuario.id, password_actual, password_nueva);
+    res.json({ mensaje: "Contrasena actualizada correctamente" });
+  } catch (err) { next(err); }
+});
+
+// Rutas de admin (requieren rol administrador)
 router.use(auth, authorize("administrador"));
 
 router.get("/", async (req, res, next) => {

@@ -2,11 +2,8 @@
    Preparar Servicio (HU-16)
    ============================================ */
 
-.prep-page { 
-  max-width: 1100px; /* Este ancho es ideal para que el calendario lateral no se vea apretado */
-  margin: 0 auto;    /* El centrado mágico */
-  padding: 0 1rem;   /* Margen de seguridad para pantallas pequeñas */
-}
+.prep-page { max-width: 1100px; margin: 0 auto; }
+
 .prep-loading {
   display: flex;
   align-items: center;
