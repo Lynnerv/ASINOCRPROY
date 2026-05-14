@@ -17,6 +17,7 @@ import { expedienteApi } from "../api/documents";
 import { servicioApi } from "../api/prepararServicio";
 import CargarModal from "../components/CargarModal";
 import ServicioDrawer from "../components/ServicioDrawer";
+import EvidenciasDrawer from "../components/EvidenciasDrawer";
 import {
   Search, X, ChevronLeft, ChevronRight, FileText, Upload, Download,
   Loader, Eye, EyeOff, ZoomIn, FolderOpen,
@@ -68,6 +69,7 @@ export default function ExpedientesPage() {
   const [showCargarModal, setShowCargarModal] = useState(false);
   const [downloading, setDownloading] = useState(null);
   const [showServicioDrawer, setShowServicioDrawer] = useState(false);
+  const [showEvidenciasDrawer, setShowEvidenciasDrawer] = useState(false);
 
   const LIMIT = 15;
 
@@ -404,12 +406,12 @@ export default function ExpedientesPage() {
                 </div>
               )}
               {["completo", "servicio_programado", "evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado) ? (
-                <Link to={`/expedientes/${detail.id}/evidencias`} className={`wf-check-item wf-check-link ${["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado) ? "wf-item-done" : "wf-item-pending"}`}>
+                <div onClick={() => setShowEvidenciasDrawer(true)} className={`wf-check-item wf-check-link ${["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado) ? "wf-item-done" : "wf-item-pending"}`}>
                   <div className="wf-check-dot">
                     {["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado) ? <CheckCircle size={15} /> : <span className="wf-num">3</span>}
                   </div>
                   <span>Completar evidencias</span>
-                </Link>
+                </div>
               ) : (
                 <div className="wf-check-item wf-item-locked">
                   <div className="wf-check-dot"><span className="wf-num">3</span></div>
@@ -488,9 +490,9 @@ export default function ExpedientesPage() {
                       </button>
                     );
                     if (["completo", "servicio_programado"].includes(detail.estado) && hasService && !hasEvidencias) return (
-                      <Link to={`/expedientes/${detail.id}/evidencias`} className="btn btn-primary">
+                      <button className="btn btn-primary" onClick={() => setShowEvidenciasDrawer(true)}>
                         Continuar a Evidencias <ArrowRight size={14} />
-                      </Link>
+                      </button>
                     );
                     return null;
                   })()}
@@ -671,6 +673,16 @@ export default function ExpedientesPage() {
           onClose={() => setShowServicioDrawer(false)}
           onSaved={() => {
             setShowServicioDrawer(false);
+            reloadDetail();
+          }}
+        />
+
+        <EvidenciasDrawer
+          open={showEvidenciasDrawer}
+          expedienteId={detail.id}
+          onClose={() => setShowEvidenciasDrawer(false)}
+          onSaved={() => {
+            setShowEvidenciasDrawer(false);
             reloadDetail();
           }}
         />

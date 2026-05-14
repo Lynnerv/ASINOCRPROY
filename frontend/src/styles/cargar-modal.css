@@ -170,7 +170,7 @@
 }
 .cm-file-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   padding: 10px 12px;
   border-radius: 8px;
@@ -183,18 +183,43 @@
   align-items: center;
   flex-shrink: 0;
   color: var(--color-text-muted);
+  margin-top: 2px;
 }
 .cm-file-done .cm-file-icon { color: #22c55e; }
 .cm-file-error .cm-file-icon { color: #ef4444; }
 .cm-file-processing .cm-file-icon { color: #6366f1; }
-.cm-file-name {
+.cm-file-detail {
   flex: 1;
+  min-width: 0;
+}
+.cm-file-name {
+  display: block;
   font-size: 0.82rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-all;
+}
+.cm-file-ok {
+  display: block;
+  font-size: 0.72rem;
+  color: #22c55e;
+  margin-top: 2px;
+}
+.cm-file-error-info {
+  margin-top: 4px;
+}
+.cm-error-title {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #ef4444;
+}
+.cm-error-desc {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+  line-height: 1.45;
+  margin-top: 2px;
 }
 .cm-file-status {
   font-size: 0.72rem;

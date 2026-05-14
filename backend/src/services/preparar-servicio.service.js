@@ -81,7 +81,8 @@ async function updateDatosServicio(expedienteId, { precio_servicio, fecha_progra
       `SELECT e.id, c.nombre AS cliente, c.nis
        FROM expedientes e
        LEFT JOIN clientes c ON e.cliente_id = c.id
-       WHERE e.fecha_programacion = $1 AND e.id != $2`,
+       WHERE e.fecha_programacion = $1 AND e.id != $2
+         AND (e.visible IS NULL OR e.visible = true)`,
       [fecha_programacion, expedienteId]
     );
 
@@ -125,6 +126,7 @@ async function getCalendario(anio, mes) {
      WHERE EXTRACT(YEAR FROM e.fecha_programacion) = $1
        AND EXTRACT(MONTH FROM e.fecha_programacion) = $2
        AND e.fecha_programacion IS NOT NULL
+       AND (e.visible IS NULL OR e.visible = true)
      ORDER BY e.fecha_programacion ASC`,
     [anio, mes]
   );
@@ -360,7 +362,7 @@ async function generarProforma(expedienteId) {
   const outputDir = path.join("uploads", "documentos_generados", String(expedienteId));
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
-  const filename = `Proforma_${expediente.nis || expedienteId}.docx`;
+  const filename = `Proforma_${expediente.nis || expedienteId}_${Date.now()}.docx`;
   const outputPath = path.join(outputDir, filename);
   fs.writeFileSync(outputPath, buffer);
 
@@ -404,7 +406,7 @@ async function generarProgramacion(expedienteId) {
   const outputDir = path.join("uploads", "documentos_generados", String(expedienteId));
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
-  const filename = `Programacion_${expediente.nis || expedienteId}.docx`;
+  const filename = `Programacion_${expediente.nis || expedienteId}_${Date.now()}.docx`;
   const outputPath = path.join(outputDir, filename);
   fs.writeFileSync(outputPath, buffer);
 

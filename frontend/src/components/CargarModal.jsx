@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Upload, X, CheckCircle, AlertCircle, Loader, FileImage,
-  ChevronRight, FolderOpen,
+  ChevronRight, FolderOpen, RotateCcw,
 } from "lucide-react";
 import { documentApi } from "../api/documents";
 import "../styles/cargar-modal.css";
@@ -36,12 +36,27 @@ export default function CargarModal({ open, onClose, onComplete }) {
   }
 
   function handleClose() {
-    if (step === 3) {
+    if (step === 2) return;
+    if (step === 3 && results.ok > 0) {
       onComplete?.(expedienteId);
     }
     reset();
     onClose();
   }
+
+  function handleRetry() {
+    reset();
+  }
+
+  useEffect(() => {
+    if (step !== 2) return;
+    function onBeforeUnload(e) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [step]);
 
   function validateFiles(fileList) {
     const valid = [];
@@ -177,9 +192,11 @@ export default function CargarModal({ open, onClose, onComplete }) {
   if (!open) return null;
 
   return (
-    <div className="cm-backdrop" onClick={handleClose}>
+    <div className="cm-backdrop" onClick={step !== 2 ? handleClose : undefined}>
       <div className="cm-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="cm-close" onClick={handleClose}><X size={18} /></button>
+        {step !== 2 && (
+          <button className="cm-close" onClick={handleClose}><X size={18} /></button>
+        )}
 
         {/* Steps indicator */}
         <div className="cm-steps">
@@ -298,11 +315,12 @@ export default function CargarModal({ open, onClose, onComplete }) {
               <h3 className="cm-result-title">
                 {results.errors === 0
                   ? "Procesamiento completado"
-                  : "Procesamiento finalizado con observaciones"}
+                  : results.ok === 0
+                    ? "No se pudo procesar"
+                    : "Procesamiento parcial"}
               </h3>
               <p className="cm-result-text">
                 {results.ok} de {results.total} carta{results.total !== 1 ? "s" : ""} procesada{results.total !== 1 ? "s" : ""} correctamente
-                {results.errors > 0 && `. ${results.errors} con errores.`}
               </p>
             </div>
 
@@ -313,21 +331,40 @@ export default function CargarModal({ open, onClose, onComplete }) {
                     {item.status === "done" && <CheckCircle size={16} />}
                     {item.status === "error" && <AlertCircle size={16} />}
                   </div>
-                  <span className="cm-file-name">{item.name}</span>
-                  <span className="cm-file-status">
-                    {item.status === "done" && "Procesado"}
-                    {item.status === "error" && (item.result?.error || "Error")}
-                  </span>
+                  <div className="cm-file-detail">
+                    <span className="cm-file-name">{item.name}</span>
+                    {item.status === "done" && <span className="cm-file-ok">Procesado correctamente</span>}
+                    {item.status === "error" && (
+                      <div className="cm-file-error-info">
+                        {(item.result?.error || "").includes("DOCUMENTO_NO_RECONOCIDO") ? (
+                          <>
+                            <span className="cm-error-title">Documento no reconocido</span>
+                            <span className="cm-error-desc">El archivo no corresponde a una Carta de Notificacion VMA. Cargue una imagen clara de la carta e intente nuevamente.</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="cm-error-title">Error en el procesamiento</span>
+                            <span className="cm-error-desc">{item.result?.error || "Ocurrio un error inesperado. Intente nuevamente."}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
 
             <div className="cm-result-actions">
-              {expedienteId && (
+              {results.ok > 0 ? (
                 <button className="btn btn-primary cm-result-btn" onClick={handleClose}>
                   <FolderOpen size={16} />
                   Ver expediente
                   <ChevronRight size={16} />
+                </button>
+              ) : (
+                <button className="btn btn-primary cm-result-btn" onClick={handleRetry}>
+                  <RotateCcw size={16} />
+                  Reintentar carga
                 </button>
               )}
             </div>

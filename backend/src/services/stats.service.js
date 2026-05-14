@@ -108,10 +108,16 @@ async function getReporteEstadisticas(fechaInicio, fechaFin) {
     `, params),
 
     query(`
-      SELECT e.estado, COUNT(*)::int AS cantidad
+      SELECT
+        CASE
+          WHEN e.estado IN ('pendiente','procesado','en_revision') THEN 'Pendiente'
+          WHEN e.estado IN ('completo','servicio_programado','evidencias_cargadas') THEN 'En progreso'
+          ELSE 'Completado'
+        END AS estado,
+        COUNT(*)::int AS cantidad
       FROM expedientes e
       WHERE (e.visible IS NULL OR e.visible = true) ${dateFilter}
-      GROUP BY e.estado
+      GROUP BY 1
       ORDER BY cantidad DESC
     `, params),
 

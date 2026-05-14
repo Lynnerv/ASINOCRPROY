@@ -11,27 +11,15 @@ import { statsApi } from "../api/documents";
 import "../styles/estadisticas.css";
 
 const ESTADO_COLORES = {
-  pendiente: "#94a3b8",
-  procesado: "#60a5fa",
-  en_revision: "#fbbf24",
-  completo: "#34d399",
-  servicio_programado: "#a78bfa",
-  evidencias_cargadas: "#f472b6",
-  listo_para_generar: "#2dd4bf",
-  generado: "#22c55e",
-  cerrado: "#6b7280",
+  "Pendiente": "#f59e0b",
+  "En progreso": "#3b82f6",
+  "Completado": "#22c55e",
 };
 
 const ESTADO_LABELS = {
-  pendiente: "Pendiente",
-  procesado: "Procesado",
-  en_revision: "En revision",
-  completo: "Completo",
-  servicio_programado: "Programado",
-  evidencias_cargadas: "Evidencias",
-  listo_para_generar: "Listo",
-  generado: "Generado",
-  cerrado: "Cerrado",
+  "Pendiente": "Pendiente",
+  "En progreso": "En progreso",
+  "Completado": "Completado",
 };
 
 const MESES_CORTOS = {

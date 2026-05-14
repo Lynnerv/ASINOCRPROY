@@ -35,7 +35,7 @@ export default function ServicioDrawer({ open, expedienteId, currentPrecio, curr
   async function loadCalendario() {
     try {
       const { data } = await servicioApi.getCalendario(calAnio, calMes);
-      setFechasOcupadas(data.servicios || []);
+      setFechasOcupadas(data.fechas || []);
     } catch {}
   }
 

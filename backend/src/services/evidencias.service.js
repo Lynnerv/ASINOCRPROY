@@ -8,19 +8,13 @@
 const { query } = require("../config/database");
 const fs = require("fs");
 const path = require("path");
+const { processLabReport } = require("./lab-extraction.service");
 
 const EVIDENCIAS_REQUERIDAS = {
-  foto_inoculacion: 4,
-  foto_monitoreo: 4,
   informe_laboratorio: 1,
 };
 
-// Formato: E001- seguido de al menos 2 dígitos
-const NUMERO_FACTURA_REGEX = /^E001-\d{2,}$/;
-
 const TIPO_LABELS = {
-  foto_inoculacion: "fotos de inoculación",
-  foto_monitoreo: "fotos de monitoreo",
   informe_laboratorio: "informe de laboratorio",
 };
 
@@ -212,14 +206,6 @@ async function guardarEvidencias(expedienteId, userId) {
     throw Object.assign(new Error("Expediente no encontrado"), { status: 404 });
   }
 
-  const numeroFactura = exp.rows[0].numero_factura;
-  if (!numeroFactura || !NUMERO_FACTURA_REGEX.test(numeroFactura)) {
-    throw Object.assign(
-      new Error("Debe ingresar un N° de factura válido con formato E001-XX"),
-      { status: 400 }
-    );
-  }
-
   const counts = await query(
     `SELECT tipo, COUNT(*)::int AS total
      FROM evidencias_expediente
@@ -256,18 +242,28 @@ async function guardarEvidencias(expedienteId, userId) {
     [userId, expedienteId]
   );
 
-  return { success: true, expediente_id: expedienteId, estado: "evidencias_cargadas" };
+  let labResult = null;
+  try {
+    labResult = await processLabReport(expedienteId);
+  } catch (err) {
+    console.warn(`[Lab Extraction] No se pudo extraer datos del informe: ${err.message}`);
+  }
+
+  return {
+    success: true,
+    expediente_id: expedienteId,
+    estado: "evidencias_cargadas",
+    lab: labResult,
+  };
 }
 
 module.exports = {
   getEvidencias,
   addOrReplaceEvidencia,
   deleteEvidencia,
-  updateNumeroFactura,
   guardarEvidencias,
-  reorderEvidencias,
   EVIDENCIAS_REQUERIDAS,
-  NUMERO_FACTURA_REGEX,
+  TIPO_LABELS,
 };
 
 /**

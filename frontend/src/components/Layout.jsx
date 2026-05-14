@@ -208,8 +208,6 @@ export default function Layout({ children }) {
           <div className="footer-left">
             <img src="/logo.png" alt="Asin Solutions" className="footer-logo" />
             <span>ASIN SOLUTIONS</span>
-            <span className="footer-sep">·</span>
-            <span>Sistema de Gestión Documental</span>
           </div>
           <div className="footer-legal">
             <Link to="/legal/privacidad" className="footer-link">Políticas de Privacidad</Link>

@@ -26,6 +26,7 @@
   margin: 0 auto;
   padding: 0 2rem;
   height: 56px;
+  position: relative;
 }
 
 /* Logo */
@@ -34,7 +35,6 @@
   align-items: center;
   gap: 9px;
   text-decoration: none;
-  margin-right: 2rem;
 }
 
 .logo-img {
@@ -60,6 +60,9 @@
 
 /* Navigation */
 .header-nav {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 2px;

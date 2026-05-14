@@ -116,7 +116,7 @@ router.delete("/evidencia/:evidenciaId", auth, async (req, res, next) => {
 });
 
 // Actualizar N° de factura
-router.patch("/:expedienteId/factura", auth, async (req, res, next) => {
+/*router.patch("/:expedienteId/factura", auth, async (req, res, next) => {
   try {
     const { numero_factura } = req.body;
     const result = await evidenciasService.updateNumeroFactura(
@@ -128,7 +128,7 @@ router.patch("/:expedienteId/factura", auth, async (req, res, next) => {
     next(err);
   }
 });
-
+*/
 // Guardar evidencias (validar todo y cambiar estado del expediente)
 router.post("/:expedienteId/guardar", auth, async (req, res, next) => {
   try {
