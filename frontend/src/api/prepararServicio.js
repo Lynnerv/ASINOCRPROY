@@ -21,4 +21,10 @@ export const servicioApi = {
   // Generar carta de programacion (descarga directa)
   generarProgramacion: (expedienteId) =>
     api.post(`/servicio/${expedienteId}/programacion`, {}, { responseType: "blob" }),
+
+  generarCertificado: (expedienteId) =>
+    api.post(`/servicio/${expedienteId}/certificado`, {}, { responseType: "blob" }),
+
+  generarInformeTecnico: (expedienteId) =>
+    api.post(`/servicio/${expedienteId}/informe-tecnico`, {}, { responseType: "blob" }),
 };

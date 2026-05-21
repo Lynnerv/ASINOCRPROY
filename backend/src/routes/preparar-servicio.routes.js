@@ -75,4 +75,29 @@ router.post("/:expedienteId/programacion", auth, async (req, res, next) => {
   }
 });
 
+// Generar certificado
+router.post("/:expedienteId/certificado", auth, async (req, res, next) => {
+  try {
+    const { filename, buffer } = await service.generarCertificado(parseInt(req.params.expedienteId));
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Generar informe tecnico
+router.post("/:expedienteId/informe-tecnico", auth, async (req, res, next) => {
+  try {
+    const { generarInformeTecnico } = require("../services/informe-tecnico.service");
+    const { filename, buffer } = await generarInformeTecnico(parseInt(req.params.expedienteId));
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

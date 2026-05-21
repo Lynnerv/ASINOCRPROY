@@ -151,19 +151,44 @@ async function addOrReplaceEvidencia({ expedienteId, tipo, orden, file, userId }
  */
 async function deleteEvidencia(evidenciaId) {
   const result = await query(
-    `SELECT ruta_archivo FROM evidencias_expediente WHERE id = $1`,
+    `SELECT id, expediente_id, tipo, ruta_archivo FROM evidencias_expediente WHERE id = $1`,
     [evidenciaId]
   );
   if (result.rows.length === 0) {
     throw Object.assign(new Error("Evidencia no encontrada"), { status: 404 });
   }
 
-  const filePath = path.resolve(process.cwd(), result.rows[0].ruta_archivo);
+  const { expediente_id, tipo, ruta_archivo } = result.rows[0];
+
+  const filePath = path.resolve(process.cwd(), ruta_archivo);
   if (fs.existsSync(filePath)) {
     try { fs.unlinkSync(filePath); } catch {}
   }
 
   await query(`DELETE FROM evidencias_expediente WHERE id = $1`, [evidenciaId]);
+
+  if (tipo === "informe_laboratorio") {
+    await query(`DELETE FROM datos_laboratorio WHERE expediente_id = $1`, [expediente_id]);
+    await query(`DELETE FROM resultados_laboratorio WHERE expediente_id = $1`, [expediente_id]);
+
+    const remaining = await query(
+      `SELECT COUNT(*)::int AS total FROM evidencias_expediente
+       WHERE expediente_id = $1 AND tipo = 'informe_laboratorio'`,
+      [expediente_id]
+    );
+
+    if (remaining.rows[0].total === 0) {
+      const exp = await query(`SELECT estado, precio_servicio FROM expedientes WHERE id = $1`, [expediente_id]);
+      if (exp.rows.length > 0 && exp.rows[0].estado === "evidencias_cargadas") {
+        const newEstado = exp.rows[0].precio_servicio ? "servicio_programado" : "completo";
+        await query(
+          `UPDATE expedientes SET estado = $2, actualizado_en = NOW() WHERE id = $1`,
+          [expediente_id, newEstado]
+        );
+      }
+    }
+  }
+
   return { deleted: true };
 }
 
@@ -229,6 +254,8 @@ async function guardarEvidencias(expedienteId, userId) {
     throw Object.assign(new Error(faltantes.join(". ")), { status: 400 });
   }
 
+  const labResult = await processLabReport(expedienteId);
+
   await query(
     `UPDATE expedientes
      SET estado = 'evidencias_cargadas', actualizado_en = NOW()
@@ -241,13 +268,6 @@ async function guardarEvidencias(expedienteId, userId) {
      VALUES ($1, 'completar_evidencias', 'expedientes', $2)`,
     [userId, expedienteId]
   );
-
-  let labResult = null;
-  try {
-    labResult = await processLabReport(expedienteId);
-  } catch (err) {
-    console.warn(`[Lab Extraction] No se pudo extraer datos del informe: ${err.message}`);
-  }
 
   return {
     success: true,

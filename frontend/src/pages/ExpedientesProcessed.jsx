@@ -198,9 +198,11 @@ export default function ExpedientesPage() {
     if (!detail) return;
     setDownloading(tipo);
     try {
-      const response = tipo === "proforma"
-        ? await servicioApi.generarProforma(detail.id)
-        : await servicioApi.generarProgramacion(detail.id);
+      let response;
+      if (tipo === "proforma") response = await servicioApi.generarProforma(detail.id);
+      else if (tipo === "programacion") response = await servicioApi.generarProgramacion(detail.id);
+      else if (tipo === "certificado") response = await servicioApi.generarCertificado(detail.id);
+      else if (tipo === "informe-tecnico") response = await servicioApi.generarInformeTecnico(detail.id);
 
       const blob = new Blob([response.data], {
         type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -358,7 +360,19 @@ export default function ExpedientesPage() {
                 </div>
                 <h1 className="hero-name">{detail.cliente || "Cliente sin asignar"}</h1>
               </div>
-              <span className={`status-badge st-${detail.estado}`}>{detail.estado}</span>
+              <span className={`status-badge st-${detail.estado}`}>
+                {({
+                  pendiente: "Pendiente",
+                  procesado: "Procesado",
+                  en_revision: "En revision",
+                  completo: "Completo",
+                  servicio_programado: "En progreso",
+                  evidencias_cargadas: "En progreso",
+                  listo_para_generar: "Listo",
+                  generado: "Generado",
+                  cerrado: "Cerrado",
+                })[detail.estado] || detail.estado}
+              </span>
             </div>
             <div className="hero-fields">
               <div className="hf-card">
@@ -410,12 +424,12 @@ export default function ExpedientesPage() {
                   <div className="wf-check-dot">
                     {["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado) ? <CheckCircle size={15} /> : <span className="wf-num">3</span>}
                   </div>
-                  <span>Completar evidencias</span>
+                  <span>Informe de laboratorio</span>
                 </div>
               ) : (
                 <div className="wf-check-item wf-item-locked">
                   <div className="wf-check-dot"><span className="wf-num">3</span></div>
-                  <span>Completar evidencias</span>
+                  <span>Informe de laboratorio</span>
                 </div>
               )}
             </div>
@@ -442,7 +456,15 @@ export default function ExpedientesPage() {
             <div className="doc-hub-group">
               <span className="doc-hub-group-label">Expediente final</span>
               <div className="doc-hub-grid">
-                {["Certificado", "Informe Tecnico", "Levantamiento", "Ficha Tecnica", "Reporte Fotografico Inoculacion", "Reporte Fotografico Monitoreo"].map((name) => (
+                <DocItem name="Certificado"
+                  ready={["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado)}
+                  step="3" loading={downloading === "certificado"}
+                  onDownload={() => handleDownloadDoc("certificado")} />
+                <DocItem name="Informe Tecnico"
+                  ready={["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado)}
+                  step="3" loading={downloading === "informe-tecnico"}
+                  onDownload={() => handleDownloadDoc("informe-tecnico")} />
+                {["Levantamiento", "Ficha Tecnica"].map((name) => (
                   <DocItem key={name} name={name}
                     ready={["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado)}
                     step="3" />
@@ -491,7 +513,7 @@ export default function ExpedientesPage() {
                     );
                     if (["completo", "servicio_programado"].includes(detail.estado) && hasService && !hasEvidencias) return (
                       <button className="btn btn-primary" onClick={() => setShowEvidenciasDrawer(true)}>
-                        Continuar a Evidencias <ArrowRight size={14} />
+                        Adjuntar informe <ArrowRight size={14} />
                       </button>
                     );
                     return null;
@@ -671,9 +693,9 @@ export default function ExpedientesPage() {
           currentPrecio={detail.precio_servicio}
           currentFecha={detail.fecha_programacion}
           onClose={() => setShowServicioDrawer(false)}
-          onSaved={() => {
+          onSaved={async () => {
+            await reloadDetail();
             setShowServicioDrawer(false);
-            reloadDetail();
           }}
         />
 
@@ -681,9 +703,12 @@ export default function ExpedientesPage() {
           open={showEvidenciasDrawer}
           expedienteId={detail.id}
           onClose={() => setShowEvidenciasDrawer(false)}
-          onSaved={() => {
+          onSaved={async () => {
+            await reloadDetail();
             setShowEvidenciasDrawer(false);
-            reloadDetail();
+          }}
+          onDeleted={async () => {
+            await reloadDetail();
           }}
         />
       </div>

@@ -195,24 +195,34 @@ function fillTemplate(templateFilename, replacements) {
  * Paso 2: Reemplazar **KEY** por el valor correspondiente.
  */
 function replaceInXml(xml, replacements) {
-  // Paso 1: Reparar placeholders divididos por Word.
-  // Patron: <w:t>**</w:t> ... tags intermedios ... <w:t>VARIABLE**</w:t>
-  // Lo convierte en: <w:t></w:t> ... tags intermedios ... <w:t>**VARIABLE**</w:t>
   xml = xml.replace(
     /<w:t(?:\s[^>]*)?>(\*\*)<\/w:t>([\s\S]*?)<w:t(?:\s[^>]*)?>([A-Z0-9_]+\*\*)<\/w:t>/g,
     (match, stars, middle, varPart) => {
-      // Reconstruir: vaciar el primer <w:t> y poner el placeholder completo en el segundo
       return match
         .replace(`>${stars}</w:t>`, `></w:t>`)
         .replace(`>${varPart}</w:t>`, `>**${varPart}</w:t>`);
     }
   );
 
-  // Paso 2: Reemplazar **KEY** con los valores
+  xml = xml.replace(
+    /<w:t(?:\s[^>]*)?>(\*)<\/w:t>([\s\S]*?)<w:t(?:\s[^>]*)?>([A-Z0-9_]+\*)<\/w:t>/g,
+    (match, star, middle, varPart) => {
+      return match
+        .replace(`>${star}</w:t>`, `></w:t>`)
+        .replace(`>${varPart}</w:t>`, `>*${varPart}</w:t>`);
+    }
+  );
+
   for (const [key, value] of Object.entries(replacements)) {
     const escaped = escapeXml(String(value));
-    const regex = new RegExp(`\\*\\*${key}\\*\\*`, "g");
-    xml = xml.replace(regex, escaped);
+    const regexDouble = new RegExp(`\\*\\*${key}\\*\\*`, "g");
+    xml = xml.replace(regexDouble, escaped);
+  }
+
+  for (const [key, value] of Object.entries(replacements)) {
+    const escaped = escapeXml(String(value));
+    const regexSingle = new RegExp(`\\*${key}\\*`, "g");
+    xml = xml.replace(regexSingle, escaped);
   }
 
   return xml;
@@ -417,10 +427,45 @@ async function generarProgramacion(expedienteId) {
   };
 }
 
+// ── Generar Certificado ─────────────────────────
+
+async function generarCertificado(expedienteId) {
+  const { expediente } = await getDatosServicio(expedienteId);
+
+  const hoy = new Date();
+  const tresMesesDespues = new Date(hoy);
+  tresMesesDespues.setMonth(tresMesesDespues.getMonth() + 3);
+
+  function formatDD(d) {
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  }
+
+  const replacements = {
+    N: String(expedienteId).padStart(4, "0"),
+    CLIENTE: expediente.cliente || "",
+    DIRECCION: expediente.direccion || "",
+    NIS: expediente.nis || "",
+    FINICIO: formatDD(hoy),
+    FFINAL: formatDD(tresMesesDespues),
+  };
+
+  const buffer = fillTemplate("CERTIFICADO_PLANTILLA.docx", replacements);
+
+  const outputDir = path.join("uploads", "documentos_generados", String(expedienteId));
+  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
+  const filename = `Certificado_${expediente.nis || expedienteId}_${Date.now()}.docx`;
+  const outputPath = path.join(outputDir, filename);
+  fs.writeFileSync(outputPath, buffer);
+
+  return { filename, path: outputPath.replace(/\\/g, "/"), buffer };
+}
+
 module.exports = {
   getDatosServicio,
   updateDatosServicio,
   getCalendario,
   generarProforma,
   generarProgramacion,
+  generarCertificado,
 };

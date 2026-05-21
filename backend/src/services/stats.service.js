@@ -16,13 +16,17 @@ async function getGlobalStats() {
     query(`
       SELECT
         COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE estado = 'procesado')::int AS procesados,
-        COUNT(*) FILTER (WHERE estado = 'validado')::int AS validados,
-        COUNT(*) FILTER (WHERE estado = 'pendiente')::int AS pendientes,
-        COUNT(*) FILTER (WHERE estado = 'error')::int AS errores
-      FROM documentos
+        COUNT(*) FILTER (WHERE d.estado = 'procesado')::int AS procesados,
+        COUNT(*) FILTER (WHERE d.estado = 'validado')::int AS validados,
+        COUNT(*) FILTER (WHERE d.estado = 'pendiente')::int AS pendientes,
+        COUNT(*) FILTER (WHERE d.estado = 'error')::int AS errores
+      FROM documentos d
+      JOIN expedientes e ON d.expediente_id = e.id
+      WHERE (e.visible IS NULL OR e.visible = true)
     `),
-    query("SELECT COUNT(*)::int AS total FROM expedientes"),
+    query(`SELECT COUNT(*)::int AS total FROM expedientes
+           WHERE (visible IS NULL OR visible = true)
+             AND id IN (SELECT DISTINCT expediente_id FROM documentos WHERE estado IN ('procesado','validado'))`),
     query("SELECT COUNT(*)::int AS total FROM clientes"),
   ]);
 
@@ -52,6 +56,7 @@ async function getRecentDocuments(limit = 10) {
      FROM documentos d
      JOIN expedientes e ON d.expediente_id = e.id
      LEFT JOIN clientes c ON e.cliente_id = c.id
+     WHERE (e.visible IS NULL OR e.visible = true)
      ORDER BY d.creado_en DESC
      LIMIT $1`,
     [limit]

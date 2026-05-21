@@ -5,7 +5,7 @@ import {
 import { evidenciasApi } from "../api/evidencias";
 import "../styles/evidencias-drawer.css";
 
-export default function EvidenciasDrawer({ open, expedienteId, onClose, onSaved }) {
+export default function EvidenciasDrawer({ open, expedienteId, onClose, onSaved, onDeleted }) {
   const [currentFile, setCurrentFile] = useState(null);
   const [newFile, setNewFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -94,6 +94,7 @@ export default function EvidenciasDrawer({ open, expedienteId, onClose, onSaved 
     try {
       await evidenciasApi.delete(currentFile.id);
       setCurrentFile(null);
+      if (onDeleted) onDeleted();
     } catch (err) {
       setError("Error al eliminar el archivo");
     }
