@@ -100,4 +100,28 @@ router.post("/:expedienteId/informe-tecnico", auth, async (req, res, next) => {
   }
 });
 
+// Generar levantamiento
+router.post("/:expedienteId/levantamiento", auth, async (req, res, next) => {
+  try {
+    const { filename, buffer } = await service.generarLevantamiento(parseInt(req.params.expedienteId));
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Generar ficha tecnica
+router.post("/:expedienteId/ficha-tecnica", auth, async (req, res, next) => {
+  try {
+    const { filename, buffer } = await service.generarFichaTecnica(parseInt(req.params.expedienteId));
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

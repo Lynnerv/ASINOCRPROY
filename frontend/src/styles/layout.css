@@ -362,7 +362,7 @@
   border-color: rgba(239, 68, 68, 0.3);
 }
 
-@media (max-width: 840px) {
+@media (max-width: 1024px) {
   .hamburger-btn { display: flex; }
   .header-nav { display: none; }
   .header-inner { padding: 0 1rem; }

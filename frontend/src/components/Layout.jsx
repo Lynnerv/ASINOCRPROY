@@ -208,6 +208,8 @@ export default function Layout({ children }) {
           <div className="footer-left">
             <img src="/logo.png" alt="Asin Solutions" className="footer-logo" />
             <span>ASIN SOLUTIONS</span>
+            <span className="footer-sep">·</span>
+            <span>Sistema de Gestión Documental</span>
           </div>
           <div className="footer-legal">
             <Link to="/legal/privacidad" className="footer-link">Políticas de Privacidad</Link>
@@ -215,8 +217,6 @@ export default function Layout({ children }) {
             <Link to="/legal/terminos" className="footer-link">Términos y Condiciones</Link>
             <span className="footer-sep">·</span>
             <Link to="/legal/arco" className="footer-link">Derechos ARCO</Link>
-            <span className="footer-sep">·</span>
-            <Link to="/legal/seguridad" className="footer-link">Seguridad</Link>
           </div>
           <div className="footer-right">
             <span>Asin Solutions © {new Date().getFullYear()}</span>

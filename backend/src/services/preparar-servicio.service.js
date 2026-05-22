@@ -443,7 +443,7 @@ async function generarCertificado(expedienteId) {
   const replacements = {
     N: String(expedienteId).padStart(4, "0"),
     CLIENTE: expediente.cliente || "",
-    DIRECCION: expediente.direccion || "",
+    DIRECCION: [expediente.direccion, expediente.distrito].filter(Boolean).join(", "),
     NIS: expediente.nis || "",
     FINICIO: formatDD(hoy),
     FFINAL: formatDD(tresMesesDespues),
@@ -461,6 +461,178 @@ async function generarCertificado(expedienteId) {
   return { filename, path: outputPath.replace(/\\/g, "/"), buffer };
 }
 
+// ── Generar Levantamiento ─────────────────────────
+
+async function generarLevantamiento(expedienteId) {
+  const { expediente } = await getDatosServicio(expedienteId);
+
+  const docsResult = await query(
+    `SELECT d.id, d.anexo, d.numero_acta, d.fecha_muestra
+     FROM documentos d
+     WHERE d.expediente_id = $1 AND d.estado IN ('procesado','validado')
+     ORDER BY d.anexo`, [expedienteId]
+  );
+
+  const paramsResult = await query(
+    `SELECT rp.documento_id, cp.codigo, cp.nombre_completo
+     FROM resultados_parametros rp
+     JOIN catalogo_parametros cp ON rp.parametro_id = cp.id
+     JOIN documentos d ON rp.documento_id = d.id
+     WHERE d.expediente_id = $1 AND d.estado IN ('procesado','validado')
+     ORDER BY cp.id`, [expedienteId]
+  );
+
+  const labResult = await query(
+    `SELECT numero_informe FROM datos_laboratorio WHERE expediente_id = $1`, [expedienteId]
+  );
+
+  const docs = docsResult.rows;
+  const a1Docs = docs.filter(d => d.anexo === "Anexo 1");
+  const a2Docs = docs.filter(d => d.anexo === "Anexo 2");
+  const ids1 = new Set(a1Docs.map(d => d.id));
+  const ids2 = new Set(a2Docs.map(d => d.id));
+
+  const params1 = paramsResult.rows.filter(r => ids1.has(r.documento_id));
+  const params2 = paramsResult.rows.filter(r => ids2.has(r.documento_id));
+
+  function joinParams(list, last) {
+    if (list.length <= 1) return list.join("");
+    return list.slice(0, -1).join(", ") + ` ${last} ` + list[list.length - 1];
+  }
+
+  let parametroText = "";
+  if (a1Docs.length > 0 && a2Docs.length > 0) {
+    const a1Names = joinParams(params1.map(p => p.codigo), "y");
+    const a2Names = joinParams(params2.map(p => p.nombre_completo), "y");
+    parametroText = `1 (${a1Names}) y Anexo 2 (${a2Names})`;
+  } else if (a1Docs.length > 0) {
+    parametroText = `1 (${joinParams(params1.map(p => p.codigo), "y")})`;
+  } else if (a2Docs.length > 0) {
+    parametroText = `2 (${joinParams(params2.map(p => p.nombre_completo), "y")})`;
+  }
+
+  const allParamTexts = [
+    ...params1.map(p => p.codigo),
+    ...params2.map(p => p.nombre_completo),
+  ];
+  const parametrosTexto = joinParams([...new Set(allParamTexts)], "y");
+
+  const primerDoc = docs[0] || {};
+  const fechaMuestra = primerDoc.fecha_muestra
+    ? new Date(primerDoc.fecha_muestra).toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric" })
+    : "";
+
+  const hoy = new Date();
+  const meses = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","setiembre","octubre","noviembre","diciembre"];
+  const fechaHoy = `${hoy.getDate()} DE ${meses[hoy.getMonth()].toUpperCase()} DE ${hoy.getFullYear()}`;
+  function formatDD(d) {
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  }
+
+  let cuerpoanexo = "";
+  if (a1Docs.length > 0 && a2Docs.length > 0) {
+    cuerpoanexo = "Es un placer dirigirme a usted para saludarlo cordialmente y, a la vez, informarle que hemos adoptado las medidas correctivas sanitarias necesarias para solicitar la anulaci\u00f3n del cobro por exceso de concentraci\u00f3n correspondiente al Anexo 1, as\u00ed como la reapertura del servicio de agua y desag\u00fce conforme al Anexo 2.";
+  } else if (a1Docs.length > 0) {
+    cuerpoanexo = "Es un placer dirigirme a usted para saludarlo cordialmente y, a la vez, informarle que hemos adoptado las medidas correctivas sanitarias necesarias para solicitar la anulaci\u00f3n del cobro por exceso de concentraci\u00f3n correspondiente al Anexo 1.";
+  } else if (a2Docs.length > 0) {
+    cuerpoanexo = "Es un placer dirigirme a usted para saludarlo cordialmente y, a la vez, informarle que hemos adoptado las medidas correctivas sanitarias necesarias para solicitar la reapertura del servicio de agua y desag\u00fce conforme al Anexo 2.";
+  }
+
+  const replacements = {
+    FECHAHOY: fechaHoy,
+    CLIENTE: expediente.cliente || "",
+    DIRECCION: [expediente.direccion, expediente.distrito].filter(Boolean).join(", "),
+    NIS: expediente.nis || "",
+    NIA: expediente.nia || "",
+    NIENSAYO: labResult.rows[0]?.numero_informe || "",
+    PARAMETRO: parametroText,
+    TMUESTRA: primerDoc.numero_acta || "",
+    FMUESTRA: fechaMuestra,
+    PARAMETROSTEXTO: parametrosTexto,
+    FINICIO: formatDD(hoy),
+    CUERPOANEXO: cuerpoanexo,
+  };
+
+  const buffer = fillTemplate("PLANTILLA_LEVANTAMIENTO.docx", replacements);
+
+  const outputDir = path.join("uploads", "documentos_generados", String(expedienteId));
+  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
+  const filename = `Levantamiento_${expediente.nis || expedienteId}_${Date.now()}.docx`;
+  const outputPath = path.join(outputDir, filename);
+  fs.writeFileSync(outputPath, buffer);
+
+  return { filename, path: outputPath.replace(/\\/g, "/"), buffer };
+}
+
+// ── Generar Ficha Tecnica ─────────────────────────
+
+async function generarFichaTecnica(expedienteId) {
+  const { expediente } = await getDatosServicio(expedienteId);
+
+  const docsResult = await query(
+    `SELECT d.id, d.anexo FROM documentos d
+     WHERE d.expediente_id = $1 AND d.estado IN ('procesado','validado')
+     ORDER BY d.anexo`, [expedienteId]
+  );
+
+  const paramsResult = await query(
+    `SELECT rp.documento_id, cp.codigo, cp.nombre_completo
+     FROM resultados_parametros rp
+     JOIN catalogo_parametros cp ON rp.parametro_id = cp.id
+     JOIN documentos d ON rp.documento_id = d.id
+     WHERE d.expediente_id = $1 AND d.estado IN ('procesado','validado')
+     ORDER BY cp.id`, [expedienteId]
+  );
+
+  const docs = docsResult.rows;
+  const a1Docs = docs.filter(d => d.anexo === "Anexo 1");
+  const a2Docs = docs.filter(d => d.anexo === "Anexo 2");
+  const ids1 = new Set(a1Docs.map(d => d.id));
+  const ids2 = new Set(a2Docs.map(d => d.id));
+  const params1 = paramsResult.rows.filter(r => ids1.has(r.documento_id));
+  const params2 = paramsResult.rows.filter(r => ids2.has(r.documento_id));
+
+  function joinParams(list, last) {
+    if (list.length <= 1) return list.join("");
+    return list.slice(0, -1).join(", ") + ` ${last} ` + list[list.length - 1];
+  }
+
+  let parametroText = "";
+  if (a1Docs.length > 0 && a2Docs.length > 0) {
+    parametroText = `1 (${joinParams(params1.map(p => p.codigo), "y")}) y Anexo 2 (${joinParams(params2.map(p => p.nombre_completo), "y")})`;
+  } else if (a1Docs.length > 0) {
+    parametroText = `1 (${joinParams(params1.map(p => p.codigo), "y")})`;
+  } else if (a2Docs.length > 0) {
+    parametroText = `2 (${joinParams(params2.map(p => p.nombre_completo), "y")})`;
+  }
+
+  const hoy = new Date();
+  function formatDD(d) {
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  }
+
+  const replacements = {
+    N: String(expedienteId).padStart(4, "0"),
+    CLIENTE: expediente.cliente || "",
+    DIRECCION: [expediente.direccion, expediente.distrito].filter(Boolean).join(", "),
+    NIS: expediente.nis || "",
+    FINICIO: formatDD(hoy),
+    PARAMETRO: parametroText,
+  };
+
+  const buffer = fillTemplate("PLANTILLA_FICHA_TECNICA.docx", replacements);
+
+  const outputDir = path.join("uploads", "documentos_generados", String(expedienteId));
+  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
+  const filename = `FichaTecnica_${expediente.nis || expedienteId}_${Date.now()}.docx`;
+  const outputPath = path.join(outputDir, filename);
+  fs.writeFileSync(outputPath, buffer);
+
+  return { filename, path: outputPath.replace(/\\/g, "/"), buffer };
+}
+
 module.exports = {
   getDatosServicio,
   updateDatosServicio,
@@ -468,4 +640,6 @@ module.exports = {
   generarProforma,
   generarProgramacion,
   generarCertificado,
+  generarLevantamiento,
+  generarFichaTecnica,
 };

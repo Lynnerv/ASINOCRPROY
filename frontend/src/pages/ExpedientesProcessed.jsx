@@ -203,6 +203,8 @@ export default function ExpedientesPage() {
       else if (tipo === "programacion") response = await servicioApi.generarProgramacion(detail.id);
       else if (tipo === "certificado") response = await servicioApi.generarCertificado(detail.id);
       else if (tipo === "informe-tecnico") response = await servicioApi.generarInformeTecnico(detail.id);
+      else if (tipo === "levantamiento") response = await servicioApi.generarLevantamiento(detail.id);
+      else if (tipo === "ficha-tecnica") response = await servicioApi.generarFichaTecnica(detail.id);
 
       const blob = new Blob([response.data], {
         type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -464,11 +466,14 @@ export default function ExpedientesPage() {
                   ready={["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado)}
                   step="3" loading={downloading === "informe-tecnico"}
                   onDownload={() => handleDownloadDoc("informe-tecnico")} />
-                {["Levantamiento", "Ficha Tecnica"].map((name) => (
-                  <DocItem key={name} name={name}
-                    ready={["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado)}
-                    step="3" />
-                ))}
+                <DocItem name="Levantamiento"
+                  ready={["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado)}
+                  step="3" loading={downloading === "levantamiento"}
+                  onDownload={() => handleDownloadDoc("levantamiento")} />
+                <DocItem name="Ficha Tecnica"
+                  ready={["evidencias_cargadas", "listo_para_generar", "generado"].includes(detail.estado)}
+                  step="3" loading={downloading === "ficha-tecnica"}
+                  onDownload={() => handleDownloadDoc("ficha-tecnica")} />
               </div>
             </div>
           </div>

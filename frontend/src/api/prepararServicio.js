@@ -27,4 +27,10 @@ export const servicioApi = {
 
   generarInformeTecnico: (expedienteId) =>
     api.post(`/servicio/${expedienteId}/informe-tecnico`, {}, { responseType: "blob" }),
+
+  generarLevantamiento: (expedienteId) =>
+    api.post(`/servicio/${expedienteId}/levantamiento`, {}, { responseType: "blob" }),
+
+  generarFichaTecnica: (expedienteId) =>
+    api.post(`/servicio/${expedienteId}/ficha-tecnica`, {}, { responseType: "blob" }),
 };

@@ -12,7 +12,7 @@ function esc(str) {
 
 async function getInformeTecnicoData(expedienteId) {
   const expResult = await query(
-    `SELECT e.id, e.estado, c.nombre AS cliente, c.direccion, c.nis, c.nia
+    `SELECT e.id, e.estado, c.nombre AS cliente, c.direccion, c.distrito, c.nis, c.nia
      FROM expedientes e LEFT JOIN clientes c ON e.cliente_id = c.id
      WHERE e.id = $1`, [expedienteId]
   );
@@ -151,7 +151,7 @@ async function generarInformeTecnico(expedienteId) {
   const reps = {
     FECHAHOY: fechaHoy,
     CLIENTE: data.expediente.cliente || "",
-    DIRECCION: data.expediente.direccion || "",
+    DIRECCION: [data.expediente.direccion, data.expediente.distrito].filter(Boolean).join(", "),
     NIS: data.expediente.nis || "",
     NIA: data.expediente.nia || "",
     NIENSAYO: data.niEnsayo,
