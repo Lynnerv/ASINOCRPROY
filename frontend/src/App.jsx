@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
+import Auditoria from "./pages/Auditoria";
 import ExpedientesPage from "./pages/ExpedientesProcessed";
 import UsersPage from "./pages/Users";
 import Notifications from "./pages/Notifications";
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/estadisticas" element={<ProtectedRoute><Layout><Estadisticas /></Layout></ProtectedRoute>} />
           <Route path="/perfil" element={<ProtectedRoute><Layout><Perfil /></Layout></ProtectedRoute>} />
           <Route path="/usuarios" element={<ProtectedRoute roles={["administrador"]}><Layout><UsersPage /></Layout></ProtectedRoute>} />
+          <Route path="/auditoria" element={<ProtectedRoute roles={["administrador"]}><Layout><Auditoria /></Layout></ProtectedRoute>} />
 
           {/* Rutas antiguas redireccionadas */}
           <Route path="/cargar" element={<Navigate to="/expedientes" replace />} />

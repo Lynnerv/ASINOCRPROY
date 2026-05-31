@@ -12,6 +12,7 @@ const usersRoutes = require("./users.routes");
 const notificationsRoutes = require("./notifications.routes");
 const arcoRoutes = require("./arco.routes");
 const prepararServicioRoutes = require("./preparar-servicio.routes");
+const auditoriaRoutes = require("./auditoria.routes");
 
 function registerRoutes(app) {
   app.use("/api/auth", authRoutes);
@@ -24,6 +25,7 @@ function registerRoutes(app) {
   app.use("/api/usuarios", usersRoutes);
   app.use("/api/notificaciones", notificationsRoutes);
   app.use("/api/arco", arcoRoutes);
+  app.use("/api/auditoria", auditoriaRoutes);
 }
 
 module.exports = registerRoutes;

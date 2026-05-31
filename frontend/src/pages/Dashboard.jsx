@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { statsApi } from "../api/documents";
 import {
   FolderOpen, FileText, FileCheck, Clock,
-  BarChart3, Users, AlertTriangle, Loader,
+  BarChart3, Users, AlertTriangle, Loader, Shield,
 } from "lucide-react";
 import "../styles/dashboard.css";
 
@@ -119,6 +119,16 @@ export default function Dashboard() {
               <div className="action-body">
                 <h3>Gestion de Usuarios</h3>
                 <p>Administrar cuentas, roles y permisos del sistema</p>
+              </div>
+            </Link>
+          )}
+
+          {rol === "administrador" && (
+            <Link to="/auditoria" className="action-card action-card-link">
+              <div className="action-icon action-violet"><Shield size={22} /></div>
+              <div className="action-body">
+                <h3>Registro de Auditoria</h3>
+                <p>Historial de acciones y trazabilidad del sistema</p>
               </div>
             </Link>
           )}

@@ -27,7 +27,7 @@ function getNavItems(rol) {
   ];
 
   if (rol === "administrador") {
-    return [...common, { to: "/usuarios", label: "Usuarios" }];
+    return [...common, { to: "/usuarios", label: "Usuarios" }, { to: "/auditoria", label: "Auditoria" }];
   }
   if (rol === "operador") {
     return common;
