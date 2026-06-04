@@ -14,6 +14,10 @@ const PizZip = require("pizzip");
 
 const TEMPLATES_DIR = path.join(process.cwd(), "templates");
 
+function peruNow() {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "America/Lima" }));
+}
+
 // ══════════════════════════════════════════════════════════
 //  Obtener datos del expediente para preparar servicio
 // ══════════════════════════════════════════════════════════
@@ -369,18 +373,11 @@ async function generarProforma(expedienteId) {
   const buffer = fillTemplate("PLANTILLA_PROPUESTA.docx", replacements);
 
   // Guardar en disco
-  const outputDir = path.join("uploads", "documentos_generados", String(expedienteId));
-  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
 
   const filename = `Proforma_${expediente.nis || expedienteId}_${Date.now()}.docx`;
-  const outputPath = path.join(outputDir, filename);
-  fs.writeFileSync(outputPath, buffer);
 
-  return {
-    filename,
-    path: outputPath.replace(/\\/g, "/"),
-    buffer,
-  };
+  return { filename, buffer };
 }
 
 // ── Generar Carta de Programacion ─────────────────────────
@@ -413,18 +410,11 @@ async function generarProgramacion(expedienteId) {
   const buffer = fillTemplate("PLANTILLA_PROGRAMACION.docx", replacements);
 
   // Guardar en disco
-  const outputDir = path.join("uploads", "documentos_generados", String(expedienteId));
-  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
 
   const filename = `Programacion_${expediente.nis || expedienteId}_${Date.now()}.docx`;
-  const outputPath = path.join(outputDir, filename);
-  fs.writeFileSync(outputPath, buffer);
 
-  return {
-    filename,
-    path: outputPath.replace(/\\/g, "/"),
-    buffer,
-  };
+  return { filename, buffer };
 }
 
 // ── Generar Certificado ─────────────────────────
@@ -432,7 +422,7 @@ async function generarProgramacion(expedienteId) {
 async function generarCertificado(expedienteId) {
   const { expediente } = await getDatosServicio(expedienteId);
 
-  const hoy = new Date();
+  const hoy = peruNow();
   const tresMesesDespues = new Date(hoy);
   tresMesesDespues.setMonth(tresMesesDespues.getMonth() + 3);
 
@@ -451,14 +441,11 @@ async function generarCertificado(expedienteId) {
 
   const buffer = fillTemplate("CERTIFICADO_PLANTILLA.docx", replacements);
 
-  const outputDir = path.join("uploads", "documentos_generados", String(expedienteId));
-  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
 
   const filename = `Certificado_${expediente.nis || expedienteId}_${Date.now()}.docx`;
-  const outputPath = path.join(outputDir, filename);
-  fs.writeFileSync(outputPath, buffer);
 
-  return { filename, path: outputPath.replace(/\\/g, "/"), buffer };
+  return { filename, buffer };
 }
 
 // ── Generar Levantamiento ─────────────────────────
@@ -522,7 +509,7 @@ async function generarLevantamiento(expedienteId) {
     ? new Date(primerDoc.fecha_muestra).toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric" })
     : "";
 
-  const hoy = new Date();
+  const hoy = peruNow();
   const meses = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","setiembre","octubre","noviembre","diciembre"];
   const fechaHoy = `${hoy.getDate()} DE ${meses[hoy.getMonth()].toUpperCase()} DE ${hoy.getFullYear()}`;
   function formatDD(d) {
@@ -555,14 +542,11 @@ async function generarLevantamiento(expedienteId) {
 
   const buffer = fillTemplate("PLANTILLA_LEVANTAMIENTO.docx", replacements);
 
-  const outputDir = path.join("uploads", "documentos_generados", String(expedienteId));
-  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
 
   const filename = `Levantamiento_${expediente.nis || expedienteId}_${Date.now()}.docx`;
-  const outputPath = path.join(outputDir, filename);
-  fs.writeFileSync(outputPath, buffer);
 
-  return { filename, path: outputPath.replace(/\\/g, "/"), buffer };
+  return { filename, buffer };
 }
 
 // ── Generar Ficha Tecnica ─────────────────────────
@@ -607,7 +591,7 @@ async function generarFichaTecnica(expedienteId) {
     parametroText = `2 (${joinParams(params2.map(p => p.nombre_completo), "y")})`;
   }
 
-  const hoy = new Date();
+  const hoy = peruNow();
   function formatDD(d) {
     return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
   }
@@ -623,14 +607,11 @@ async function generarFichaTecnica(expedienteId) {
 
   const buffer = fillTemplate("PLANTILLA_FICHA_TECNICA.docx", replacements);
 
-  const outputDir = path.join("uploads", "documentos_generados", String(expedienteId));
-  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
 
   const filename = `FichaTecnica_${expediente.nis || expedienteId}_${Date.now()}.docx`;
-  const outputPath = path.join(outputDir, filename);
-  fs.writeFileSync(outputPath, buffer);
 
-  return { filename, path: outputPath.replace(/\\/g, "/"), buffer };
+  return { filename, buffer };
 }
 
 module.exports = {

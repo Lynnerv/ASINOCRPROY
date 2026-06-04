@@ -53,26 +53,22 @@ async function getEvidencias(expedienteId) {
  * (elimina el archivo viejo y actualiza el registro).
  */
 async function addOrReplaceEvidencia({ expedienteId, tipo, orden, file, userId }) {
-  // Verificar expediente
+  const { uploadFile, deleteFile: deleteStorageFile } = require("../config/storage");
+
   const exp = await query("SELECT id FROM expedientes WHERE id = $1", [expedienteId]);
   if (exp.rows.length === 0) {
-    try { fs.unlinkSync(file.path); } catch {}
     throw Object.assign(new Error("Expediente no encontrado"), { status: 404 });
   }
 
-  // Normalizar orden
   let ordenNum;
   if (tipo === "informe_laboratorio") {
     ordenNum = null;
   } else if (orden) {
-    // Orden explícito (reemplazo de slot específico)
     ordenNum = parseInt(orden);
     if (!ordenNum || ordenNum < 1 || ordenNum > 4) {
-      try { fs.unlinkSync(file.path); } catch {}
       throw Object.assign(new Error("El orden debe estar entre 1 y 4"), { status: 400 });
     }
   } else {
-    // Sin orden: auto-asignar el primer slot disponible (1-4)
     const used = await query(
       `SELECT orden FROM evidencias_expediente
        WHERE expediente_id = $1 AND tipo = $2 AND orden IS NOT NULL
@@ -88,15 +84,13 @@ async function addOrReplaceEvidencia({ expedienteId, tipo, orden, file, userId }
       }
     }
     if (!ordenNum) {
-      try { fs.unlinkSync(file.path); } catch {}
       throw Object.assign(
-        new Error("Ya hay 4 fotos cargadas para este tipo. Elimina alguna antes de subir más."),
+        new Error("Ya hay 4 fotos cargadas para este tipo. Elimina alguna antes de subir mas."),
         { status: 400 }
       );
     }
   }
 
-  // Buscar existente
   let existing;
   if (ordenNum) {
     existing = await query(
@@ -112,13 +106,14 @@ async function addOrReplaceEvidencia({ expedienteId, tipo, orden, file, userId }
     );
   }
 
-  const rutaNormalizada = file.path.replace(/\\/g, "/");
+  const ext = path.extname(file.originalname);
+  const storagePath = `evidencias/${expedienteId}/${tipo}${ordenNum ? "_" + ordenNum : ""}_${Date.now()}${ext}`;
+  await uploadFile("evidencias", storagePath, file.buffer, file.mimetype);
 
-  // Reemplazar
   if (existing.rows.length > 0) {
-    const oldPath = path.resolve(process.cwd(), existing.rows[0].ruta_archivo);
-    if (fs.existsSync(oldPath)) {
-      try { fs.unlinkSync(oldPath); } catch {}
+    const oldStoragePath = existing.rows[0].ruta_archivo;
+    if (oldStoragePath.startsWith("evidencias/")) {
+      try { await deleteStorageFile("evidencias", oldStoragePath); } catch {}
     }
 
     const result = await query(
@@ -130,18 +125,17 @@ async function addOrReplaceEvidencia({ expedienteId, tipo, orden, file, userId }
          creado_en = NOW()
        WHERE id = $5
        RETURNING id, tipo, orden, ruta_archivo, nombre_archivo, tamano_bytes, creado_en`,
-      [rutaNormalizada, file.originalname, file.size, userId, existing.rows[0].id]
+      [storagePath, file.originalname, file.size, userId, existing.rows[0].id]
     );
     return result.rows[0];
   }
 
-  // Insertar nuevo
   const result = await query(
     `INSERT INTO evidencias_expediente
        (expediente_id, tipo, orden, ruta_archivo, nombre_archivo, tamano_bytes, subido_por)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING id, tipo, orden, ruta_archivo, nombre_archivo, tamano_bytes, creado_en`,
-    [expedienteId, tipo, ordenNum, rutaNormalizada, file.originalname, file.size, userId]
+    [expedienteId, tipo, ordenNum, storagePath, file.originalname, file.size, userId]
   );
   return result.rows[0];
 }
@@ -160,9 +154,14 @@ async function deleteEvidencia(evidenciaId) {
 
   const { expediente_id, tipo, ruta_archivo } = result.rows[0];
 
-  const filePath = path.resolve(process.cwd(), ruta_archivo);
-  if (fs.existsSync(filePath)) {
-    try { fs.unlinkSync(filePath); } catch {}
+  if (ruta_archivo.startsWith("evidencias/")) {
+    const { deleteFile: deleteStorageFile } = require("../config/storage");
+    try { await deleteStorageFile("evidencias", ruta_archivo); } catch {}
+  } else {
+    const filePath = path.resolve(process.cwd(), ruta_archivo);
+    if (fs.existsSync(filePath)) {
+      try { fs.unlinkSync(filePath); } catch {}
+    }
   }
 
   await query(`DELETE FROM evidencias_expediente WHERE id = $1`, [evidenciaId]);

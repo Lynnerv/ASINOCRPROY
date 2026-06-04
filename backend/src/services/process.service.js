@@ -13,6 +13,7 @@
  */
 
 const { execFile } = require("child_process");
+const fs = require("fs");
 const path = require("path");
 const { query } = require("../config/database");
 
@@ -318,7 +319,20 @@ async function getPendingDocuments(estados = ["pendiente"]) {
  *   5. Inserta parametros VMA
  */
 async function processDocument(doc) {
-  const imagePath = path.resolve(process.cwd(), doc.ruta_archivo);
+  const { downloadFile } = require("../config/storage");
+  const os = require("os");
+
+  let imagePath;
+  let tempFile = false;
+
+  if (doc.ruta_archivo.startsWith("documentos/")) {
+    const buffer = await downloadFile("documentos", doc.ruta_archivo);
+    imagePath = path.join(os.tmpdir(), `ocr_${doc.id}_${Date.now()}.jpg`);
+    fs.writeFileSync(imagePath, buffer);
+    tempFile = true;
+  } else {
+    imagePath = path.resolve(process.cwd(), doc.ruta_archivo);
+  }
 
   try {
     await query("UPDATE documentos SET estado = 'procesando' WHERE id = $1", [
@@ -361,7 +375,7 @@ async function processDocument(doc) {
          fecha_muestra = $7,
          numero_informe = $8,
          extraido_json = $9,
-         estado = 'procesado',
+         estado = 'validado',
          actualizado_en = NOW()
        WHERE id = $1`,
       [
@@ -396,6 +410,10 @@ async function processDocument(doc) {
       estado: "error",
       error: err.message,
     };
+  } finally {
+    if (tempFile && fs.existsSync(imagePath)) {
+      try { fs.unlinkSync(imagePath); } catch {}
+    }
   }
 }
 
@@ -408,18 +426,18 @@ async function updateExpedienteStatus(expedienteId) {
   const result = await query(
     `SELECT 
        COUNT(*)::int AS total,
-       COUNT(*) FILTER (WHERE estado = 'procesado')::int AS procesados,
+       COUNT(*) FILTER (WHERE estado IN ('procesado','validado'))::int AS listos,
        COUNT(*) FILTER (WHERE estado = 'error')::int AS errores
      FROM documentos 
      WHERE expediente_id = $1`,
     [expedienteId]
   );
 
-  const { total, procesados } = result.rows[0];
+  const { total, listos } = result.rows[0];
 
-  if (procesados === total && total > 0) {
+  if (listos === total && total > 0) {
     await query(
-      `UPDATE expedientes SET estado = 'procesado', actualizado_en = NOW() WHERE id = $1`,
+      `UPDATE expedientes SET estado = 'completo', actualizado_en = NOW() WHERE id = $1`,
       [expedienteId]
     );
   }

@@ -35,7 +35,8 @@ const poolConfig = process.env.DATABASE_URL
 
 const pool = new Pool(poolConfig);
 
-pool.on("connect", () => {
+pool.on("connect", (client) => {
+  client.query("SET timezone = 'America/Lima'");
   if (process.env.NODE_ENV !== "production") {
     console.log("  ✓ Conexión a PostgreSQL establecida" + (isSSL ? " (SSL)" : ""));
   }

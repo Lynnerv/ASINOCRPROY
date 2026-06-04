@@ -28,11 +28,17 @@ REGLAS:
 - Responde SOLO con el JSON, sin texto adicional`;
 
 async function extractLabReport(pdfPath) {
-  const absolutePath = path.resolve(process.cwd(), pdfPath);
-  const pdfBuffer = fs.readFileSync(absolutePath);
+  let pdfBuffer;
+  if (pdfPath.startsWith("evidencias/")) {
+    const { downloadFile } = require("../config/storage");
+    pdfBuffer = await downloadFile("evidencias", pdfPath);
+  } else {
+    const absolutePath = path.resolve(process.cwd(), pdfPath);
+    pdfBuffer = fs.readFileSync(absolutePath);
+  }
   const pdfBase64 = pdfBuffer.toString("base64");
 
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || "gemini-2.5-flash" });
 
   const result = await model.generateContent([
     {
@@ -49,6 +55,84 @@ async function extractLabReport(pdfPath) {
   return JSON.parse(cleaned);
 }
 
+async function resolveParametroId(nombre) {
+  const nombreNorm = nombre
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+  const directMatch = await query(
+    `SELECT id, codigo, nombre_completo FROM catalogo_parametros
+     WHERE LOWER(nombre_completo) ILIKE $1
+        OR LOWER(expresion) ILIKE $1
+     LIMIT 1`,
+    [`%${nombreNorm}%`]
+  );
+
+  if (directMatch.rows.length > 0) return directMatch.rows[0];
+
+  const keywords = nombreNorm.split(/\s+/).filter((w) => w.length > 3);
+  for (const kw of keywords) {
+    const retry = await query(
+      `SELECT id, codigo, nombre_completo FROM catalogo_parametros
+       WHERE LOWER(nombre_completo) ILIKE $1
+       LIMIT 1`,
+      [`%${kw}%`]
+    );
+    if (retry.rows.length > 0) return retry.rows[0];
+  }
+
+  return null;
+}
+
+async function validateParametrosMatch(expedienteId, extractedParametros) {
+  const expectedResult = await query(
+    `SELECT DISTINCT cp.id, cp.codigo, cp.nombre_completo
+     FROM resultados_parametros rp
+     JOIN catalogo_parametros cp ON rp.parametro_id = cp.id
+     JOIN documentos d ON rp.documento_id = d.id
+     WHERE d.expediente_id = $1`,
+    [expedienteId]
+  );
+
+  const expectedParams = expectedResult.rows;
+  if (expectedParams.length === 0) return { valid: true, expected: [], matched: [] };
+
+  const expectedIds = new Set(expectedParams.map((p) => p.id));
+
+  const matchedIds = new Set();
+  for (const p of extractedParametros) {
+    if (!p.nombre) continue;
+    const resolved = await resolveParametroId(p.nombre);
+    if (resolved && expectedIds.has(resolved.id)) {
+      matchedIds.add(resolved.id);
+    }
+  }
+
+  const missingParams = expectedParams.filter((p) => !matchedIds.has(p.id));
+
+  if (missingParams.length > 0 && matchedIds.size === 0) {
+    const expectedNames = expectedParams.map((p) => p.codigo).join(", ");
+    const labNames = extractedParametros.map((p) => p.nombre).join(", ");
+    throw Object.assign(
+      new Error(
+        `El informe de laboratorio no corresponde a este expediente. ` +
+        `Se esperaban los parametros: ${expectedNames}. ` +
+        `El informe contiene: ${labNames}.`
+      ),
+      { status: 400 }
+    );
+  }
+
+  return {
+    valid: true,
+    expected: expectedParams.map((p) => p.codigo),
+    matched: [...matchedIds],
+    missing: missingParams.map((p) => p.codigo),
+  };
+}
+
 async function matchAndInsertParametros(expedienteId, parametros) {
   let inserted = 0;
 
@@ -57,46 +141,14 @@ async function matchAndInsertParametros(expedienteId, parametros) {
   for (const p of parametros) {
     if (!p.nombre || p.resultado == null) continue;
 
-    const nombreNorm = p.nombre
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim();
+    const resolved = await resolveParametroId(p.nombre);
 
-    let parametroId = null;
-
-    const directMatch = await query(
-      `SELECT id FROM catalogo_parametros
-       WHERE LOWER(nombre_completo) ILIKE $1
-          OR LOWER(expresion) ILIKE $1
-       LIMIT 1`,
-      [`%${nombreNorm}%`]
-    );
-
-    if (directMatch.rows.length > 0) {
-      parametroId = directMatch.rows[0].id;
-    } else {
-      const keywords = nombreNorm.split(/\s+/).filter((w) => w.length > 3);
-      for (const kw of keywords) {
-        const retry = await query(
-          `SELECT id FROM catalogo_parametros
-           WHERE LOWER(nombre_completo) ILIKE $1
-           LIMIT 1`,
-          [`%${kw}%`]
-        );
-        if (retry.rows.length > 0) {
-          parametroId = retry.rows[0].id;
-          break;
-        }
-      }
-    }
-
-    if (parametroId) {
+    if (resolved) {
       await query(
         `INSERT INTO resultados_laboratorio (expediente_id, parametro_id, resultado_valor)
          VALUES ($1, $2, $3)
          ON CONFLICT (expediente_id, parametro_id) DO UPDATE SET resultado_valor = $3`,
-        [expedienteId, parametroId, String(p.resultado)]
+        [expedienteId, resolved.id, String(p.resultado)]
       );
       inserted++;
     }
@@ -168,6 +220,9 @@ async function processLabReport(expedienteId) {
 
   const pdfRuta = evidencia.rows[0].ruta_archivo;
   const extracted = await extractLabReport(pdfRuta);
+
+  await validateParametrosMatch(expedienteId, extracted.parametros || []);
+
   return await saveLabData(expedienteId, extracted, pdfRuta);
 }
 

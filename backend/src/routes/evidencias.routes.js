@@ -19,23 +19,6 @@ const router = Router();
 
 // ── Configuración de Multer ─────────────────────────────────────────
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const expId = req.params.expedienteId;
-    const dir = path.join("uploads", "evidencias", String(expId));
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const tipo = req.body.tipo || "archivo";
-    const orden = req.body.orden || "";
-    const ext = path.extname(file.originalname);
-    const timestamp = Date.now();
-    const name = `${tipo}${orden ? "_" + orden : ""}_${timestamp}${ext}`;
-    cb(null, name);
-  },
-});
-
 const fileFilter = (req, file, cb) => {
   const tipo = req.body.tipo;
   if (!tipo) {
@@ -58,9 +41,9 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  limits: { fileSize: 20 * 1024 * 1024 },
 });
 
 // ── Rutas ────────────────────────────────────────────────────────────
@@ -116,7 +99,7 @@ router.delete("/evidencia/:evidenciaId", auth, async (req, res, next) => {
 });
 
 // Actualizar N° de factura
-/*router.patch("/:expedienteId/factura", auth, async (req, res, next) => {
+router.patch("/:expedienteId/factura", auth, async (req, res, next) => {
   try {
     const { numero_factura } = req.body;
     const result = await evidenciasService.updateNumeroFactura(
@@ -128,7 +111,7 @@ router.delete("/evidencia/:evidenciaId", auth, async (req, res, next) => {
     next(err);
   }
 });
-*/
+
 // Guardar evidencias (validar todo y cambiar estado del expediente)
 router.post("/:expedienteId/guardar", auth, async (req, res, next) => {
   try {

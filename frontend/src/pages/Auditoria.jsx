@@ -90,11 +90,11 @@ export default function Auditoria() {
   const totalPages = Math.ceil(total / limit);
 
   function formatFecha(fecha) {
-    return new Date(fecha).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
+    return new Date(fecha).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Lima" });
   }
 
   function formatHora(fecha) {
-    return new Date(fecha).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
+    return new Date(fecha).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", timeZone: "America/Lima" });
   }
 
   return (

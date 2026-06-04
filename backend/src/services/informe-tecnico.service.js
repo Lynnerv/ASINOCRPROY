@@ -5,6 +5,10 @@ const { query } = require("../config/database");
 
 const TEMPLATES_DIR = path.join(process.cwd(), "templates");
 
+function peruNow() {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "America/Lima" }));
+}
+
 function esc(str) {
   if (!str) return "";
   return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -138,7 +142,7 @@ function findHeadingBefore(xml, tableStart, searchText) {
 
 async function generarInformeTecnico(expedienteId) {
   const data = await getInformeTecnicoData(expedienteId);
-  const hoy = new Date();
+  const hoy = peruNow();
   const meses = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","setiembre","octubre","noviembre","diciembre"];
   const fechaHoy = `${hoy.getDate()} de ${meses[hoy.getMonth()]} de ${hoy.getFullYear()}`;
 
@@ -213,12 +217,9 @@ async function generarInformeTecnico(expedienteId) {
     mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   });
 
-  const outputDir = path.join("uploads", "documentos_generados", String(expedienteId));
-  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
   const filename = `InformeTecnico_${data.expediente.nis || expedienteId}_${Date.now()}.docx`;
-  fs.writeFileSync(path.join(outputDir, filename), buffer);
 
-  return { filename, path: path.join(outputDir, filename).replace(/\\/g, "/"), buffer };
+  return { filename, buffer };
 }
 
 module.exports = { generarInformeTecnico };

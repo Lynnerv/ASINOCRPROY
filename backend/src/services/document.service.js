@@ -5,9 +5,10 @@
  *   1. Operador sube 1-2 cartas
  *   2. Se crea 1 EXPEDIENTE nuevo (estado: pendiente)
  *   3. Se crean N registros en documentos, todos con ese expediente_id
- *   4. OCR+IA procesa después → extrae datos y vincula cliente
+ *   4. OCR+Gemini procesa después → extrae datos y vincula cliente
  *
  * Modelo:  clientes → expedientes → documentos
+ *          (1 carga = 1 expediente = 1-2 cartas de un mismo servicio)
  */
 
 const { query } = require("../config/database");
@@ -20,7 +21,8 @@ const path = require("path");
  * @returns {Object} { expediente_id, documentos[] }
  */
 async function registerUploadedFiles(files, userId) {
-  // 1. Crear expediente
+  const { uploadFile } = require("../config/storage");
+
   const expResult = await query(
     `INSERT INTO expedientes (estado, creado_por)
      VALUES ('pendiente', $1)
@@ -29,22 +31,25 @@ async function registerUploadedFiles(files, userId) {
   );
   const expedienteId = expResult.rows[0].id;
 
-  // 2. Registrar cada documento vinculado al expediente
   const results = [];
   for (const file of files) {
     try {
-      const rutaRelativa = path
-        .relative(process.cwd(), file.path)
-        .replace(/\\/g, "/");
-
       const ext = path.extname(file.originalname).toLowerCase().replace(".", "");
+      const timestamp = Date.now();
+      const sanitized = file.originalname
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9._-]/g, "_");
+      const storagePath = `documentos/${expedienteId}/${timestamp}_${sanitized}`;
+
+      await uploadFile("documentos", storagePath, file.buffer, file.mimetype);
 
       const result = await query(
         `INSERT INTO documentos 
           (expediente_id, ruta_archivo, nombre_archivo, tipo_archivo, tamano_bytes, estado, subido_por)
          VALUES ($1, $2, $3, $4, $5, 'pendiente', $6)
          RETURNING id, nombre_archivo, tipo_archivo, tamano_bytes, estado, creado_en`,
-        [expedienteId, rutaRelativa, file.originalname, ext, file.size, userId]
+        [expedienteId, storagePath, file.originalname, ext, file.size, userId]
       );
 
       results.push({ ...result.rows[0], resultado: "registrado" });
@@ -61,134 +66,61 @@ async function registerUploadedFiles(files, userId) {
 }
 
 /**
- * Lista documentos con paginación + filtros HU-08
- * Filtros: estado, buscar, nis, cliente, tipo (tipo_notificacion), rango de fechas (fecha_carta)
- * Orden: fecha desc por defecto
+ * Lista documentos con paginación y filtros.
+ * JOIN: documentos → expedientes → clientes
  *
- * IMPORTANTE:
- * - UI quiere: pendiente / en_revision / procesado / archivado
- * - BD hoy tiene: pendiente / procesando / procesado / validado / error
- * => mapeamos estado UI -> estado BD sin cambiar tu flujo existente.
+ * Soporta:
+ *   - estado: string o array de estados
+ *   - buscar: búsqueda por NIS, cliente, número de carta
  */
-async function listDocuments({
-  page = 1,
-  limit = 10,
-  estado = null,
-  buscar = null,
-  nis = null,
-  cliente = null,
-  tipo = null,
-  fecha_inicio = null, // snake_case
-  fecha_fin = null, // snake_case
-  fechaInicio = null, // camelCase compat
-  fechaFin = null, // camelCase compat
-}) {
+async function listDocuments({ page = 1, limit = 20, estado = null, buscar = null }) {
   const offset = (page - 1) * limit;
   const conditions = [];
   const params = [];
 
-  // normalizar fechas (acepta ambos nombres)
-  const fIni = fechaInicio || fecha_inicio || null;
-  const fFin = fechaFin || fecha_fin || null;
-
-  // estado (map UI -> BD)
+  // Filtro por estado(s)
   if (estado) {
-    const estadoMap = {
-      en_revision: ["procesando"],
-      archivado: ["validado"],
-      pendiente: ["pendiente"],
-      procesado: ["procesado"],
-      // si te llega "error" no lo mapeamos
-    };
-
-    const estadosDB = estadoMap[estado] || [estado];
-
-    if (estadosDB.length === 1) {
-      params.push(estadosDB[0]);
-      conditions.push(`d.estado = $${params.length}`);
-    } else {
-      const placeholders = estadosDB
-        .map((_, i) => `$${params.length + i + 1}`)
-        .join(", ");
-      params.push(...estadosDB);
-      conditions.push(`d.estado IN (${placeholders})`);
-    }
+    const estados = Array.isArray(estado) ? estado : [estado];
+    const placeholders = estados.map((_, i) => `$${params.length + i + 1}`);
+    params.push(...estados);
+    conditions.push(`d.estado IN (${placeholders.join(", ")})`);
   }
 
-  // nis
-  if (nis) {
-    params.push(`%${nis}%`);
-    conditions.push(`c.nis ILIKE $${params.length}`);
-  }
-
-  // cliente
-  if (cliente) {
-    params.push(`%${cliente}%`);
-    conditions.push(`c.nombre ILIKE $${params.length}`);
-  }
-
-  // tipo (tipo_notificacion)
-  if (tipo) {
-    params.push(`%${tipo}%`);
-    conditions.push(`d.tipo_notificacion ILIKE $${params.length}`);
-  }
-
-  // buscar (texto libre)
+  // Búsqueda libre
   if (buscar) {
     params.push(`%${buscar}%`);
     const idx = params.length;
-    conditions.push(`(
-      c.nis ILIKE $${idx}
-      OR c.nombre ILIKE $${idx}
-      OR d.numero_carta ILIKE $${idx}
-      OR d.nombre_archivo ILIKE $${idx}
-      OR d.tipo_notificacion ILIKE $${idx}
-    )`);
+    conditions.push(
+      `(c.nis ILIKE $${idx} OR c.nombre ILIKE $${idx} OR d.numero_carta ILIKE $${idx})`
+    );
   }
 
-  // rango fechas (fecha_carta)
-  if (fIni) {
-    params.push(fIni);
-    conditions.push(`d.fecha_carta >= $${params.length}`);
-  }
-  if (fFin) {
-    params.push(fFin);
-    conditions.push(`d.fecha_carta <= $${params.length}`);
-  }
+  const whereClause = conditions.length > 0
+    ? `WHERE ${conditions.join(" AND ")}`
+    : "";
 
-  const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-
-  // count
   const countResult = await query(
-    `SELECT COUNT(*)::int AS total
-     FROM documentos d
+    `SELECT COUNT(*) FROM documentos d
      JOIN expedientes e ON d.expediente_id = e.id
      LEFT JOIN clientes c ON e.cliente_id = c.id
      ${whereClause}`,
     params
   );
-  const total = countResult.rows[0].total;
+  const total = parseInt(countResult.rows[0].count);
 
-  // data
   params.push(limit, offset);
   const docsResult = await query(
-    `SELECT
-        d.id,
-        d.nombre_archivo,
-        d.numero_carta,
-        d.tipo_notificacion,
-        d.fecha_carta,
-        d.estado,
-        d.tipo_archivo,
-        c.nis,
-        c.nombre AS cliente
+    `SELECT d.id, d.expediente_id, d.nombre_archivo, d.tipo_archivo,
+            d.tamano_bytes, d.numero_carta, d.fecha_carta, d.anexo,
+            d.estado, d.confianza_ocr, d.creado_en,
+            d.ruta_archivo,
+            c.nis, c.nombre AS cliente, c.direccion, c.distrito
      FROM documentos d
      JOIN expedientes e ON d.expediente_id = e.id
      LEFT JOIN clientes c ON e.cliente_id = c.id
      ${whereClause}
-     ORDER BY d.fecha_carta DESC NULLS LAST, d.creado_en DESC
-     LIMIT $${params.length - 1}
-     OFFSET $${params.length}`,
+     ORDER BY d.creado_en DESC
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params
   );
 
@@ -196,13 +128,15 @@ async function listDocuments({
     documentos: docsResult.rows,
     total,
     page,
-    totalPages: Math.max(1, Math.ceil(total / limit)),
+    totalPages: Math.ceil(total / limit),
   };
 }
 
 /**
- * Obtiene un documento por ID con cliente y parámetros VMA.
- * HU-09: agrega archivo_url y ocr_fields (correcto/a_validar)
+ * Obtiene un documento por ID con:
+ *   - datos del cliente (via expediente)
+ *   - parámetros VMA extraídos
+ *   - documentos hermanos del mismo expediente
  */
 async function getDocumentById(id) {
   const docResult = await query(
@@ -221,6 +155,7 @@ async function getDocumentById(id) {
 
   const doc = docResult.rows[0];
 
+  // Parámetros VMA
   const paramsResult = await query(
     `SELECT rp.resultado_valor, cp.codigo, cp.nombre_completo, 
             cp.unidad, cp.expresion, cp.vma_normado, cp.anexo
@@ -229,63 +164,19 @@ async function getDocumentById(id) {
      WHERE rp.documento_id = $1`,
     [id]
   );
-
   doc.parametros_vma = paramsResult.rows;
 
-  // HU-09: url para blob/descarga
-  doc.archivo_url = `/api/documentos/${id}/archivo`;
-
-  // HU-09: campos OCR + status (simple)
-  const campos = [
-    { key: "nis", label: "NIS", value: doc.nis },
-    { key: "cliente", label: "Cliente", value: doc.cliente },
-    { key: "tipo_notificacion", label: "Tipo", value: doc.tipo_notificacion },
-    { key: "fecha_carta", label: "Fecha", value: doc.fecha_carta },
-    { key: "estado", label: "Estado", value: doc.estado },
-    { key: "numero_carta", label: "Nº Carta", value: doc.numero_carta },
-    { key: "numero_acta", label: "Nº Acta", value: doc.numero_acta },
-    { key: "fecha_muestra", label: "Fecha muestra", value: doc.fecha_muestra },
-    { key: "numero_informe", label: "Nº Informe", value: doc.numero_informe },
-  ];
-
-  doc.ocr_fields = campos.map((f) => ({
-    ...f,
-    status: f.value == null || String(f.value).trim() === "" ? "a_validar" : "correcto",
-  }));
+  // Documentos hermanos (mismo expediente, excluye el actual)
+  const siblingsResult = await query(
+    `SELECT id, nombre_archivo, anexo, estado, ruta_archivo
+     FROM documentos
+     WHERE expediente_id = $1 AND id != $2
+     ORDER BY creado_en ASC`,
+    [doc.expediente_id, id]
+  );
+  doc.documentos_expediente = siblingsResult.rows;
 
   return doc;
 }
 
-/**
- * Devuelve info mínima para servir el archivo original (ruta_archivo + nombre)
- */
-async function getDocumentFileInfo(id) {
-  const result = await query(
-    `SELECT id, ruta_archivo, nombre_archivo, tipo_archivo
-     FROM documentos
-     WHERE id = $1`,
-    [id]
-  );
-
-  if (result.rows.length === 0) {
-    throw Object.assign(new Error("Documento no encontrado"), { status: 404 });
-  }
-
-  return result.rows[0];
-}
-
-/**
- * (Opcional HU-09) historial/auditoría simple
- * Si no tienes tabla historial, devuelve vacío para no romper
- */
-async function getDocumentHistory(_id) {
-  return { historial: [] };
-}
-
-module.exports = {
-  registerUploadedFiles,
-  listDocuments,
-  getDocumentById,
-  getDocumentFileInfo,
-  getDocumentHistory,
-};
+module.exports = { registerUploadedFiles, listDocuments, getDocumentById };

@@ -15,6 +15,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { expedienteApi } from "../api/documents";
 import { servicioApi } from "../api/prepararServicio";
+import api from "../api/auth";
 import CargarModal from "../components/CargarModal";
 import ServicioDrawer from "../components/ServicioDrawer";
 import EvidenciasDrawer from "../components/EvidenciasDrawer";
@@ -238,8 +239,26 @@ export default function ExpedientesPage() {
     return exp.estado || "pendiente";
   }
 
+  const [docImageUrls, setDocImageUrls] = useState({});
+
+  useEffect(() => {
+    if (!detail) return;
+    const docs = detail.documentos || [];
+    docs.forEach(async (doc) => {
+      if (docImageUrls[doc.id]) return;
+      try {
+        const resp = await api.get(`/documentos/${doc.id}/imagen`, { responseType: "blob" });
+        const url = URL.createObjectURL(resp.data);
+        setDocImageUrls((prev) => ({ ...prev, [doc.id]: url }));
+      } catch {}
+    });
+    return () => {
+      Object.values(docImageUrls).forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [detail]);
+
   function getImageUrl(doc) {
-    return `${API_BASE}/${doc.ruta_archivo.replace(/\\/g, "/")}`;
+    return docImageUrls[doc.id] || "";
   }
 
   function updateField(field, value) {
@@ -707,6 +726,7 @@ export default function ExpedientesPage() {
         <EvidenciasDrawer
           open={showEvidenciasDrawer}
           expedienteId={detail.id}
+          expedienteEstado={detail.estado}
           onClose={() => setShowEvidenciasDrawer(false)}
           onSaved={async () => {
             await reloadDetail();

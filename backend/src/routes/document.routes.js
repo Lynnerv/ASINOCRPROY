@@ -1,10 +1,9 @@
 /**
  * Rutas de documentos.
  *
- * POST /api/documentos/cargar       → Subir (HU-04)
- * GET  /api/documentos             → Listar (HU-08)
- * GET  /api/documentos/:id/archivo  → Blob/Descarga (HU-09)
- * GET  /api/documentos/:id          → Detalle (HU-09)
+ * POST /api/documentos/cargar   → Subir cartas (HU-04)
+ * GET  /api/documentos          → Listar documentos
+ * GET  /api/documentos/:id      → Detalle de un documento
  */
 
 const { Router } = require("express");
@@ -15,10 +14,10 @@ const { upload } = require("../config/upload");
 
 const router = Router();
 
-// Todas requieren auth
+// Todas las rutas requieren autenticación
 router.use(auth);
 
-// HU-04
+// --- Subir cartas (HU-04) ---
 router.post(
   "/cargar",
   upload.array("cartas", 20),
@@ -26,13 +25,34 @@ router.post(
   documentController.uploadFiles
 );
 
-// HU-08
+// --- Listar documentos ---
 router.get("/", documentController.listDocuments);
 
-// HU-09 (archivo)
-router.get("/:id/archivo", documentController.getDocumentFile);
-
-// HU-09 (detalle)
+// --- Detalle de un documento ---
 router.get("/:id", documentController.getDocument);
+
+router.get("/:id/imagen", async (req, res, next) => {
+  try {
+    const { query: dbQuery } = require("../config/database");
+    const result = await dbQuery("SELECT ruta_archivo, tipo_archivo FROM documentos WHERE id = $1", [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: "Documento no encontrado" });
+
+    const { ruta_archivo, tipo_archivo } = result.rows[0];
+
+    if (ruta_archivo.startsWith("documentos/")) {
+      const { downloadFile } = require("../config/storage");
+      const buffer = await downloadFile("documentos", ruta_archivo);
+      const mimeMap = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png" };
+      res.setHeader("Content-Type", mimeMap[tipo_archivo] || "image/jpeg");
+      res.send(buffer);
+    } else {
+      const path = require("path");
+      const absPath = path.resolve(process.cwd(), ruta_archivo);
+      res.sendFile(absPath);
+    }
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = router;
