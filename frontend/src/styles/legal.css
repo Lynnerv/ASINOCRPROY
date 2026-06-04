@@ -8,7 +8,11 @@
   display: grid;
   grid-template-columns: 260px 1fr;
   gap: 1.5rem;
-  align-items: flex-start;
+  align-items: start;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 /* ── Sidebar ── */
@@ -19,6 +23,10 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 1rem 0.75rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 .legal-sidebar-title {
   font-size: 0.68rem;
@@ -58,6 +66,11 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 2rem 2.5rem;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   min-height: 500px;
 }
 
@@ -358,7 +371,7 @@
 @media (max-width: 900px) {
   .legal-container { grid-template-columns: 1fr; }
   .legal-sidebar { position: static; }
-  .legal-nav { flex-direction: row; overflow-x: auto; }
+  .legal-nav { flex-direction: row; flex-wrap: wrap; gap: 4px; }
   .legal-nav-item { white-space: nowrap; }
   .legal-content { padding: 1.5rem; }
   .arco-row-2 { grid-template-columns: 1fr; }
@@ -366,6 +379,20 @@
   .marco-table { font-size: 0.78rem; }
   .marco-table td:first-child,
   .marco-table td:nth-child(2) { width: auto; }
+}
+@media (max-width: 600px) {
+  .legal-container { gap: 0.5rem; padding: 0; width: 100vw; max-width: 100%; }
+  .legal-sidebar { padding: 0.5rem 0.25rem; border-radius: 0; border-left: none; border-right: none; }
+  .legal-nav { gap: 0; }
+  .legal-nav-item { padding: 6px 10px; font-size: 0.75rem; }
+  .legal-content { padding: 1rem; border-radius: 0; }
+  .legal-content h2 { font-size: 1.1rem; }
+  .legal-content h3 { font-size: 0.95rem; }
+  .legal-content p, .legal-content li { font-size: 0.82rem; line-height: 1.5; }
+  .arco-field label { font-size: 0.78rem; }
+  .arco-field input, .arco-field textarea, .arco-field select { font-size: 0.82rem; }
+  .marco-table td, .marco-table th { padding: 0.5rem; font-size: 0.72rem; }
+  .ley-table td, .ley-table th { padding: 0.5rem 0.6rem; font-size: 0.72rem; }
 }
 
 /* ══════════════════════════════
