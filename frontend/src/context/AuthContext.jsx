@@ -31,14 +31,20 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function login(correo, password) {
-    const { data } = await authApi.login(correo, password);
-    
-    // 🔥 usa response directo
-    localStorage.setItem("token", response.token);
-    localStorage.setItem("usuario", JSON.stringify(response.usuario));
+  
+  const response = await authApi.login(correo, password);
 
-    setUsuario(data.usuario);
-    return data;
+  // ✅ IMPORTANTE
+  const data = response.data;
+
+  // ✅ guardar correctamente
+  localStorage.setItem("token", data.token);
+  localStorage.setItem("usuario", JSON.stringify(data.usuario));
+
+  setUsuario(data.usuario);
+
+  return data; 
+
   }
 
   function logout() {
