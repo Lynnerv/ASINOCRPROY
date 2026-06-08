@@ -32,8 +32,11 @@ export function AuthProvider({ children }) {
 
   async function login(correo, password) {
     const { data } = await authApi.login(correo, password);
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("usuario", JSON.stringify(data.usuario));
+    
+    // 🔥 usa response directo
+    localStorage.setItem("token", response.token);
+    localStorage.setItem("usuario", JSON.stringify(response.usuario));
+
     setUsuario(data.usuario);
     return data;
   }
