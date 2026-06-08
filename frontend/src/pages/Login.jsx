@@ -38,10 +38,14 @@ export default function Login() {
       return;
     }
 
+    
     setLoading(true);
     try {
       await login(correo.trim(), password);
-      navigate("/", { replace: true });
+      // ✅ te quedas en /
+      window.location.href = "/";
+      window.location.reload();
+
     } catch (err) {
       const msg =
         err.response?.data?.error ||
