@@ -75,7 +75,7 @@ function runPipeline(imagePath) {
       args,
       {
         cwd: OCR_SERVICE_DIR,
-        timeout: 120000,
+        timeout: parseInt(process.env.OCR_TIMEOUT) || 60000,
         maxBuffer: 1024 * 1024 * 10,
         encoding: "utf8",
         env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
@@ -103,6 +103,50 @@ function runPipeline(imagePath) {
       }
     );
   });
+}
+
+function runVisionFallback(imagePath) {
+  return new Promise((resolve, reject) => {
+    execFile(
+      PYTHON_CMD,
+      ["vision_fallback.py", imagePath],
+      {
+        cwd: OCR_SERVICE_DIR,
+        timeout: parseInt(process.env.VISION_TIMEOUT) || 60000,
+        maxBuffer: 1024 * 1024 * 10,
+        encoding: "utf8",
+        env: { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" },
+      },
+      (error, stdout, stderr) => {
+        if (error) {
+          return reject(new Error(`Vision fallback fallo: ${error.message}\n${stderr}`));
+        }
+        try {
+          const jsonMatch = stdout.match(/\[[\s\S]*\]/);
+          if (!jsonMatch) return reject(new Error("Vision no devolvio JSON valido"));
+          const arr = JSON.parse(jsonMatch[0]);
+          if (!arr || arr.length === 0) return reject(new Error("Vision devolvio array vacio"));
+          resolve(arr[0]);
+        } catch (parseErr) {
+          reject(new Error(`Error parseando vision: ${parseErr.message}`));
+        }
+      }
+    );
+  });
+}
+
+async function runHybridExtraction(imagePath) {
+  try {
+    const data = await runPipeline(imagePath);
+    return data;
+  } catch (err) {
+    const isTimeout = err.message.includes("ETIMEDOUT") || err.message.includes("killed") || err.message.includes("timeout");
+    if (isTimeout) {
+      console.warn("[OCR] EasyOCR excedio el tiempo limite, usando Gemini Vision como contingencia");
+      return await runVisionFallback(imagePath);
+    }
+    throw err;
+  }
 }
 
 // ── Cliente (datos fijos por NIS) ──────────────────────────────────────
@@ -339,8 +383,8 @@ async function processDocument(doc) {
       doc.id,
     ]);
 
-    // 1. Pipeline
-    const data = await runPipeline(imagePath);
+    // 1. Pipeline hibrido (EasyOCR + Gemini, con Gemini Vision como contingencia)
+    const data = await runHybridExtraction(imagePath);
 
     // Validar que sea una carta de notificacion VMA
     const tieneNumeroCarta = data.numero_carta && String(data.numero_carta).trim().length > 0;
